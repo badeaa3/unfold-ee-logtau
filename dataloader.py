@@ -9,8 +9,6 @@ def DataLoader(config):
     # load everything
     DATA = np.load(config['FILE_DATA'], allow_pickle=True)
     MC = np.load(config['FILE_MC'], allow_pickle=True)
-    # config['TrackVariation'] = track selection variation
-    # config['EvtVariation'] = event selection variation
     
     # pick out the correct entries
     data = DATA["t_thrust"][:,config['TrackVariation']]
@@ -19,7 +17,6 @@ def DataLoader(config):
     reco_mask = MC[f"t_passEventSelection_{config['EvtVariation']}"][:,config['TrackVariation']]
     mc_gen = np.stack(MC["tgenBefore_thrust"]).flatten() # little hack because format is array([array([]), array([]), ....]) and we need array([,,,,])
     gen_mask = np.stack(MC[f"tgenBefore_passEventSelection"]).flatten()
-    # print(data.shape, data_mask.shape, mc_reco.shape, reco_mask.shape, mc_gen.shape, gen_mask.shape)
 
     ###### pick up the correct event ID's to use directly tgenbefore
     a = MC['tgen_uniqueID'] # WHES_id
