@@ -26,6 +26,8 @@ import numpy as np
 
 # custom code
 import dataloader
+
+# omnifold
 from omnifold import  Multifold, LoadJson
 
 # set gpu growth
