@@ -28,7 +28,8 @@ import numpy as np
 import dataloader
 
 # omnifold
-from omnifold import  Multifold, LoadJson
+# from omnifold import  MultiFold, LoadJson
+from omnifold import MultiFold, MLP, SetStyle, HistRoutine
 
 # set gpu growth
 gpus = tf.config.list_physical_devices('GPU')
@@ -42,6 +43,76 @@ if gpus:
   except RuntimeError as e:
     # Memory growth must be set before GPUs have been initialized
     print(e)
+
+# def train(
+#     conf
+# ):
+
+#     print(conf)
+    
+#     # update %j with actual job number
+#     output_directory = conf["output_directory"]
+#     try:
+#         job_env = submitit.JobEnvironment()
+#         job_id = job_env.job_id
+#         output_directory = Path(str(output_directory).replace("%j", str(job_id)))
+#     except:
+#         job_id = random.randrange(16**8)
+#         output_directory = Path(str(output_directory).replace("%j", "%08x" % job_id))
+        
+#     os.makedirs(output_directory, exist_ok=True)
+#     print(output_directory)
+
+#     # save configurations to config file
+#     configPath = Path(output_directory, "config_omnifold.json").resolve()
+#     with open(str(configPath), "w") as outfile: 
+#       json.dump(conf, outfile)
+    
+#     # load data
+#     data, mc_reco, mc_gen, reco_mask, gen_mask = dataloader.DataLoader(conf)
+
+#     # create Poisson(1) weights
+#     weights_mc = np.random.poisson(1, mc_gen.shape[0]) if conf["poisson_weights"] else None
+#     weights_data = np.random.poisson(1, data.shape[0]) if conf["poisson_weights"] else None
+
+#     # make weights directory
+#     weights_folder = Path(output_directory, "./model_weights").resolve()
+#     weights_folder.mkdir()
+#     weights_folder = str(weights_folder)
+    
+#     # launch training
+#     for itrial in range(conf['NTRIAL']):
+#       K.clear_session()
+#       mfold = MultiFold(version='{}_trial{}_strapn{}'.format(conf['NAME'],itrial,conf["strapn"]),
+#                         strapn=conf["strapn"],
+#                         verbose=conf["verbose"],
+#                         run_id=job_id,
+#                         boot=conf["boot"],
+#                         weights_folder=weights_folder,
+#                         config_file=configPath
+#       )      
+#       mfold.mc_gen = mc_gen # the sim pre-detector
+#       mfold.mc_reco = mc_reco # sim post-detector
+#       mfold.data = data # experimental real data
+      
+#       # tf.random.set_seed(itrial)
+#       mfold.Preprocessing(weights_mc=weights_mc, weights_data=weights_data, pass_reco=reco_mask, pass_gen=gen_mask)
+#       """
+#       Preprocessing goes as follows
+#       self.PrepareWeights(weights_mc,weights_data,pass_reco,pass_gen)        
+#       self.PrepareInputs()
+#       self.PrepareModel(nvars = self.mc_gen.shape[1])
+      
+#       """
+#       mfold.Unfold() # note that this will automatically set a random seed based on random_training_seed inside of omnifold.py
+
+#       # get weights
+#       omnifold_weights = mfold.reweight(mc_gen[gen_mask],mfold.model2)
+      
+#       # save weights to h5 file
+#       outFileName = Path(output_directory, "omnifold_weights.h5").resolve()
+#       with h5py.File(outFileName, 'w') as hf:
+#         hf.create_dataset("weights", data=omnifold_weights)
 
 def train(
     conf
@@ -61,57 +132,64 @@ def train(
         
     os.makedirs(output_directory, exist_ok=True)
     print(output_directory)
-
-    # save configurations to config file
-    configPath = Path(output_directory, "config_omnifold.json").resolve()
-    with open(str(configPath), "w") as outfile: 
-      json.dump(conf, outfile)
     
-    # load data
-    data, mc_reco, mc_gen, reco_mask, gen_mask = dataloader.DataLoader(conf)
+    # load the aleph reconstructed data, reconstructed mc, and generator mc
+    reco_data, reco_mc, gen_mc, pass_reco, pass_gen = dataloader.DataLoader(conf)
 
-    # create Poisson(1) weights
+    # create the event weights
     weights_mc = np.random.poisson(1, mc_gen.shape[0]) if conf["poisson_weights"] else None
     weights_data = np.random.poisson(1, data.shape[0]) if conf["poisson_weights"] else None
 
+    # make omnifold dataloaders ready for training
+    data = omnifold.DataLoader(
+      reco = reco_data,
+      weight = weights_data,
+      normalize = True
+    )
+    
+    mc = omnifold.DataLoader(
+      reco = reco_mc,
+      pass_reco = pass_reco,
+      gen = gen_mc,
+      pass_gen = pass_gen,
+      weight = weights_mc,
+      normalize=True
+    )
+    
     # make weights directory
     weights_folder = Path(output_directory, "./model_weights").resolve()
     weights_folder.mkdir()
     weights_folder = str(weights_folder)
-    
-    # launch training
-    for itrial in range(conf['NTRIAL']):
-      K.clear_session()
-      mfold = Multifold(version='{}_trial{}_strapn{}'.format(conf['NAME'],itrial,conf["strapn"]),
-                        strapn=conf["strapn"],
-                        verbose=conf["verbose"],
-                        run_id=job_id,
-                        boot=conf["boot"],
-                        weights_folder=weights_folder,
-                        config_file=configPath
-      )
-      mfold.mc_gen = mc_gen # the sim pre-detector
-      mfold.mc_reco = mc_reco # sim post-detector
-      mfold.data = data # experimental real data
-      
-      # tf.random.set_seed(itrial)
-      mfold.Preprocessing(weights_mc=weights_mc, weights_data=weights_data, pass_reco=reco_mask, pass_gen=gen_mask)
-      """
-      Preprocessing goes as follows
-      self.PrepareWeights(weights_mc,weights_data,pass_reco,pass_gen)        
-      self.PrepareInputs()
-      self.PrepareModel(nvars = self.mc_gen.shape[1])
-      
-      """
-      mfold.Unfold() # note that this will automatically set a random seed based on random_training_seed inside of omnifold.py
 
-      # get weights
-      omnifold_weights = mfold.reweight(mc_gen[gen_mask],mfold.model2)
-      
-      # save weights to h5 file
-      outFileName = Path(output_directory, "omnifold_weights.h5").resolve()
-      with h5py.File(outFileName, 'w') as hf:
-        hf.create_dataset("weights", data=omnifold_weights)
+    # prepare networks
+    ndim = 1 # Number of features we are going to create = thrust
+    model1 = MLP(ndim)
+    model2 = MLP(ndim)
+
+    # prepare multifold
+    mfold = MultiFold(
+      name = '{}_trial{}_strapn{}'.format(conf['NAME'],itrial,conf["strapn"]),
+      model_reco = model1,
+      model_gen = model2,
+      data = data,
+      mc = mc, # NEED TO UPDATE THIS TO WHAT IT ACTUALLY IS
+      batch_size = 1024,
+      nstrap = conf["strapn"],
+      weights_folder = weights_folder,
+      verbose = True
+    )
+
+    # launch training
+    mfold.Preprocessing()
+    mfold.Unfold()
+    
+    # get weights
+    omnifold_weights = mfold.reweight(mc_gen[gen_mask], omnifold.model_gen) # mfold.model2)
+    
+    # save weights to h5 file
+    outFileName = Path(output_directory, "omnifold_weights.h5").resolve()
+    with h5py.File(outFileName, 'w') as hf:
+      hf.create_dataset("weights", data=omnifold_weights)
         
 if __name__ == "__main__":
 
@@ -185,7 +263,7 @@ if __name__ == "__main__":
 
     # add configurations for ensembling
     if args.run_ensembling:
-      nensemble = 40
+      nensemble = 1
       for i in range(nensemble):
         temp = training_conf.copy()
         confs.append(temp)
