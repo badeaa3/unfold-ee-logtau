@@ -7,20 +7,14 @@ Date: May 27, 2024
 import os
 os.environ['TF_USE_LEGACY_KERAS'] = '1' 
 
-# tensorflow
-import tensorflow as tf
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping
-import tensorflow.keras.backend as K
-
 # python based
+import tensorflow as tf
 import random
 from pathlib import Path
 import time
 import argparse
 import json
 import submitit
-import shutil
 import h5py
 import numpy as np
 
@@ -28,8 +22,7 @@ import numpy as np
 import dataloader
 
 # omnifold
-# from omnifold import  MultiFold, LoadJson
-from omnifold import MultiFold, MLP, SetStyle, HistRoutine
+import omnifold
 
 # set gpu growth
 gpus = tf.config.list_physical_devices('GPU')
@@ -44,75 +37,6 @@ if gpus:
     # Memory growth must be set before GPUs have been initialized
     print(e)
 
-# def train(
-#     conf
-# ):
-
-#     print(conf)
-    
-#     # update %j with actual job number
-#     output_directory = conf["output_directory"]
-#     try:
-#         job_env = submitit.JobEnvironment()
-#         job_id = job_env.job_id
-#         output_directory = Path(str(output_directory).replace("%j", str(job_id)))
-#     except:
-#         job_id = random.randrange(16**8)
-#         output_directory = Path(str(output_directory).replace("%j", "%08x" % job_id))
-        
-#     os.makedirs(output_directory, exist_ok=True)
-#     print(output_directory)
-
-#     # save configurations to config file
-#     configPath = Path(output_directory, "config_omnifold.json").resolve()
-#     with open(str(configPath), "w") as outfile: 
-#       json.dump(conf, outfile)
-    
-#     # load data
-#     data, mc_reco, mc_gen, reco_mask, gen_mask = dataloader.DataLoader(conf)
-
-#     # create Poisson(1) weights
-#     weights_mc = np.random.poisson(1, mc_gen.shape[0]) if conf["poisson_weights"] else None
-#     weights_data = np.random.poisson(1, data.shape[0]) if conf["poisson_weights"] else None
-
-#     # make weights directory
-#     weights_folder = Path(output_directory, "./model_weights").resolve()
-#     weights_folder.mkdir()
-#     weights_folder = str(weights_folder)
-    
-#     # launch training
-#     for itrial in range(conf['NTRIAL']):
-#       K.clear_session()
-#       mfold = MultiFold(version='{}_trial{}_strapn{}'.format(conf['NAME'],itrial,conf["strapn"]),
-#                         strapn=conf["strapn"],
-#                         verbose=conf["verbose"],
-#                         run_id=job_id,
-#                         boot=conf["boot"],
-#                         weights_folder=weights_folder,
-#                         config_file=configPath
-#       )      
-#       mfold.mc_gen = mc_gen # the sim pre-detector
-#       mfold.mc_reco = mc_reco # sim post-detector
-#       mfold.data = data # experimental real data
-      
-#       # tf.random.set_seed(itrial)
-#       mfold.Preprocessing(weights_mc=weights_mc, weights_data=weights_data, pass_reco=reco_mask, pass_gen=gen_mask)
-#       """
-#       Preprocessing goes as follows
-#       self.PrepareWeights(weights_mc,weights_data,pass_reco,pass_gen)        
-#       self.PrepareInputs()
-#       self.PrepareModel(nvars = self.mc_gen.shape[1])
-      
-#       """
-#       mfold.Unfold() # note that this will automatically set a random seed based on random_training_seed inside of omnifold.py
-
-#       # get weights
-#       omnifold_weights = mfold.reweight(mc_gen[gen_mask],mfold.model2)
-      
-#       # save weights to h5 file
-#       outFileName = Path(output_directory, "omnifold_weights.h5").resolve()
-#       with h5py.File(outFileName, 'w') as hf:
-#         hf.create_dataset("weights", data=omnifold_weights)
 
 def train(
     conf
@@ -162,19 +86,22 @@ def train(
     weights_folder = str(weights_folder)
 
     # prepare networks
-    ndim = 1 # Number of features we are going to create = thrust
-    model1 = MLP(ndim)
-    model2 = MLP(ndim)
+    ndim = reco_data.shape[1] # Number of features we are going to create = thrust
+    model1 = omnifold.MLP(ndim)
+    model2 = omnifold.MLP(ndim)
 
     # prepare multifold
-    mfold = MultiFold(
-      name = '{}_trial{}_strapn{}'.format(conf['NAME'],itrial,conf["strapn"]),
+    mfold = omnifold.MultiFold(
+      name = 'omnifold_strapn{}'.format(conf["strapn"]),
       model_reco = model1,
       model_gen = model2,
       data = data,
       mc = mc, # NEED TO UPDATE THIS TO WHAT IT ACTUALLY IS
-      batch_size = 1024,
+      batch_size = conf["batch_size"],
+      epochs = conf["epochs"],
+      lr = conf["lr"],
       nstrap = conf["strapn"],
+      niter = conf["niter"],
       weights_folder = weights_folder,
       verbose = True
     )
@@ -184,7 +111,7 @@ def train(
     mfold.Unfold()
     
     # get weights
-    omnifold_weights = mfold.reweight(mc_gen[gen_mask], omnifold.model_gen) # mfold.model2)
+    omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2)
     
     # save weights to h5 file
     outFileName = Path(output_directory, "omnifold_weights.h5").resolve()
@@ -223,17 +150,17 @@ if __name__ == "__main__":
       'FILE_DATA':'/home/badea/e+e-/aleph/data/processed/20220514/LEP1Data1994_recons_aftercut-MERGED_ThrustReprocess.npz',
       'TrackVariation': 0, # nominal track selection
       'EvtVariation': 0, # nominal event selection
-      'NITER': 5,
-      'NTRIAL':1,
-      'LR': 1e-3,
-      'BATCH_SIZE': 5000,
-      'EPOCHS': 500,
-      'NWARMUP': 5,
-      'NAME':'toy',
-      'NPATIENCE': 10,
+      'niter': 1, #5,
+      #'NTRIAL':1,
+      'lr': 1e-4,
+      'batch_size': 128,
+      'epochs': 1,
+      #'NWARMUP': 5,
+      #'NAME':'toy',
+      #'NPATIENCE': 10,
       'strapn' : 0,
       'verbose' : args.verbose,
-      'boot' : None,
+      #'boot' : None,
       'poisson_weights' : False
     }
     
@@ -252,11 +179,11 @@ if __name__ == "__main__":
 
     # add configurations for bootstrap mc or data
     if args.run_bootstrap_mc or args.run_bootstrap_data:
-      boot = "mc" if args.run_bootstrap_mc else "data"
+      #boot = "mc" if args.run_bootstrap_mc else "data"
       nstraps = 40
       for strapn in range(nstraps):
         temp = training_conf.copy() # copy overall
-        temp["boot"] = boot # the combination of boot and strapn will automatically do poisson weights within omnifold.py
+        #temp["boot"] = boot # the combination of boot and strapn will automatically do poisson weights within omnifold.py
         temp["strapn"] = strapn
         temp["poisson_weights"] = False
         confs.append(temp)
@@ -274,7 +201,6 @@ if __name__ == "__main__":
             # only launch a single job
             if args.njobs != -1 and (iC+1) > args.njobs:
                 continue
-            print(conf)
             train(conf)
         exit()
     
