@@ -9,6 +9,7 @@ os.environ['TF_USE_LEGACY_KERAS'] = '1'
 
 # python based
 import tensorflow as tf
+import tensorflow.keras.backend as K
 import random
 from pathlib import Path
 import time
@@ -85,38 +86,43 @@ def train(
     weights_folder.mkdir()
     weights_folder = str(weights_folder)
 
-    # prepare networks
-    ndim = reco_data.shape[1] # Number of features we are going to create = thrust
-    model1 = omnifold.MLP(ndim)
-    model2 = omnifold.MLP(ndim)
+    for itrial in range(conf['ntrial']):
 
-    # prepare multifold
-    mfold = omnifold.MultiFold(
-      name = 'omnifold_strapn{}'.format(conf["strapn"]),
-      model_reco = model1,
-      model_gen = model2,
-      data = data,
-      mc = mc, # NEED TO UPDATE THIS TO WHAT IT ACTUALLY IS
-      batch_size = conf["batch_size"],
-      epochs = conf["epochs"],
-      lr = conf["lr"],
-      nstrap = conf["strapn"],
-      niter = conf["niter"],
-      weights_folder = weights_folder,
-      verbose = True
-    )
+      # clear previous session
+      K.clear_session()
+      
+      # prepare networks
+      ndim = reco_data.shape[1] # Number of features we are going to create = thrust
+      model1 = omnifold.MLP(ndim)
+      model2 = omnifold.MLP(ndim)
 
-    # launch training
-    mfold.Preprocessing()
-    mfold.Unfold()
+      # prepare multifold
+      mfold = omnifold.MultiFold(
+        name = 'omnifold_trial{}_strapn{}'.format(itrial, conf["strapn"]),
+        model_reco = model1,
+        model_gen = model2,
+        data = data,
+        mc = mc,
+        batch_size = conf["batch_size"],
+        epochs = conf["epochs"],
+        lr = conf["lr"],
+        nstrap = conf["strapn"],
+        niter = conf["niter"],
+        weights_folder = weights_folder,
+        verbose = True
+      )
+
+      # launch training
+      mfold.Preprocessing()
+      mfold.Unfold()
     
-    # get weights
-    omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2)
+      # get weights
+      omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2)
     
-    # save weights to h5 file
-    outFileName = Path(output_directory, "omnifold_weights.h5").resolve()
-    with h5py.File(outFileName, 'w') as hf:
-      hf.create_dataset("weights", data=omnifold_weights)
+      # save weights to h5 file
+      outFileName = Path(output_directory, f"omnifold_weights_trial{itrial}.h5").resolve()
+      with h5py.File(outFileName, 'w') as hf:
+        hf.create_dataset("weights", data=omnifold_weights)
         
 if __name__ == "__main__":
 
@@ -151,7 +157,7 @@ if __name__ == "__main__":
       'TrackVariation': 0, # nominal track selection
       'EvtVariation': 0, # nominal event selection
       'niter': 1, #5,
-      #'NTRIAL':1,
+      'ntrial':2,
       'lr': 1e-4,
       'batch_size': 128,
       'epochs': 1,
