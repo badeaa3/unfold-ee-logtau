@@ -62,8 +62,8 @@ def train(
     reco_data, reco_mc, gen_mc, pass_reco, pass_gen = dataloader.DataLoader(conf)
 
     # create the event weights
-    weights_mc = np.random.poisson(1, mc_gen.shape[0]) if conf["poisson_weights"] else None
-    weights_data = np.random.poisson(1, data.shape[0]) if conf["poisson_weights"] else None
+    weights_mc = np.random.poisson(1, gen_mc.shape[0]) if conf["poisson_weights"] == "mc" else np.ones(gen_mc.shape[0], dtype=np.float32)
+    weights_data = np.random.poisson(1, data.shape[0]) if conf["poisson_weights"] == "data" else np.ones(data.shape[0], dtype=np.float32)
 
     # make omnifold dataloaders ready for training
     data = omnifold.DataLoader(
@@ -98,7 +98,7 @@ def train(
 
       # prepare multifold
       mfold = omnifold.MultiFold(
-        name = 'omnifold_trial{}_strapn{}'.format(itrial, conf["strapn"]),
+        name = 'mfold_trial{}_strapn{}'.format(itrial, conf["strapn"]),
         model_reco = model1,
         model_gen = model2,
         data = data,
@@ -106,10 +106,11 @@ def train(
         batch_size = conf["batch_size"],
         epochs = conf["epochs"],
         lr = conf["lr"],
-        nstrap = conf["strapn"],
+        # nstrap = conf["strapn"],
         niter = conf["niter"],
         weights_folder = weights_folder,
-        verbose = True
+        verbose = conf["verbose"],
+        early_stop = conf["early_stop"],
       )
 
       # launch training
@@ -123,7 +124,11 @@ def train(
       outFileName = Path(output_directory, f"omnifold_weights_trial{itrial}.h5").resolve()
       with h5py.File(outFileName, 'w') as hf:
         hf.create_dataset("weights", data=omnifold_weights)
-        
+
+      # move log file
+      mfold.log_file.close()
+      shutil(mfold.log_file.name, output_directory)
+      
 if __name__ == "__main__":
 
     # set up command line arguments
@@ -156,18 +161,15 @@ if __name__ == "__main__":
       'FILE_DATA':'/home/badea/e+e-/aleph/data/processed/20220514/LEP1Data1994_recons_aftercut-MERGED_ThrustReprocess.npz',
       'TrackVariation': 0, # nominal track selection
       'EvtVariation': 0, # nominal event selection
-      'niter': 1, #5,
-      'ntrial':2,
+      'ntrial': 2, # number of times to run the unfolding per training
+      'niter': 1,
       'lr': 1e-4,
       'batch_size': 128,
       'epochs': 1,
-      #'NWARMUP': 5,
-      #'NAME':'toy',
-      #'NPATIENCE': 10,
+      'early_stop': 10,
       'strapn' : 0,
       'verbose' : args.verbose,
-      #'boot' : None,
-      'poisson_weights' : False
+      'poisson_weights' : None
     }
     
     # list of configurations to launch
@@ -180,23 +182,27 @@ if __name__ == "__main__":
           temp = training_conf.copy() # copy overall
           temp["TrackVariation"] = TrackVariation
           temp["EvtVariation"] = EvtVariation
-          temp["poisson_weights"] = False
           confs.append(temp)
 
     # add configurations for bootstrap mc or data
     if args.run_bootstrap_mc or args.run_bootstrap_data:
-      #boot = "mc" if args.run_bootstrap_mc else "data"
+
+      # double check they aren't both true
+      if args.run_bootstrap_mc == True and args.run_bootstrap_data == True:
+        print("Warning you set bootstrap mc and data to True. Exiting to make sure that's what you want")
+        exit()
+
+      # number of bootstraps
       nstraps = 40
       for strapn in range(nstraps):
         temp = training_conf.copy() # copy overall
-        #temp["boot"] = boot # the combination of boot and strapn will automatically do poisson weights within omnifold.py
         temp["strapn"] = strapn
-        temp["poisson_weights"] = False
+        temp["poisson_weights"] = "mc" if args.run_bootstrap_mc else "data"
         confs.append(temp)
 
     # add configurations for ensembling
     if args.run_ensembling:
-      nensemble = 1
+      nensemble = 40
       for i in range(nensemble):
         temp = training_conf.copy()
         confs.append(temp)
