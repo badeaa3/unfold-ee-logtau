@@ -63,9 +63,20 @@ def train(
     reco_data, reco_mc, gen_mc, pass_reco, pass_gen = dataloader.DataLoader(conf)
 
     # create the event weights
-    weights_mc = np.random.poisson(1, gen_mc.shape[0]) if conf["poisson_weights"] == "mc" else np.ones(gen_mc.shape[0], dtype=np.float32)
-    weights_data = np.random.poisson(1, reco_data.shape[0]) if conf["poisson_weights"] == "data" else np.ones(reco_data.shape[0], dtype=np.float32)
+    weights_mc = np.ones(gen_mc.shape[0], dtype=np.float32)
+    weights_data = np.ones(reco_data.shape[0], dtype=np.float32)
 
+    # if user wants to use poisson variation for bootstrapping
+    if conf["poisson_weights"] != None:
+
+      np.random.seed(conf["nstrap"])
+      
+      if conf["poisson_weights"] == "mc":
+        weights_mc = np.random.poisson(1, gen_mc.shape[0])
+        
+      if conf["poisson_weights"] == "data":
+        weights_data = np.random.poisson(1, reco_data.shape[0])
+      
     # make omnifold dataloaders ready for training
     data = omnifold.DataLoader(
       reco = reco_data,
@@ -99,8 +110,7 @@ def train(
 
       # prepare multifold
       mfold = omnifold.MultiFold(
-        # name = 'mfold_trial{}_strapn{}'.format(itrial, conf["strapn"]),
-        name = 'mfold_trial{}'.format(itrial),
+        name = 'mfold_trial{}_strapn{}'.format(itrial, conf["strapn"]),
         model_reco = model1,
         model_gen = model2,
         data = data,
@@ -108,7 +118,6 @@ def train(
         batch_size = conf["batch_size"],
         epochs = conf["epochs"],
         lr = conf["lr"],
-        # nstrap = conf["strapn"],
         niter = conf["niter"],
         weights_folder = weights_folder,
         verbose = conf["verbose"],
@@ -168,15 +177,15 @@ if __name__ == "__main__":
       'FILE_DATA':'/home/badea/e+e-/aleph/data/processed/20220514/LEP1Data1994_recons_aftercut-MERGED_ThrustReprocess.npz',
       'TrackVariation': 0, # nominal track selection
       'EvtVariation': 0, # nominal event selection
-      'ntrial': 2, # number of times to run the unfolding per training
-      'niter': 1,
+      'ntrial': 40, # number of times to run the unfolding per training
+      'niter': 3,
       'lr': 1e-4,
       'batch_size': 128,
-      'epochs': 1,
+      'epochs': 50,
       'early_stop': 10,
-      'strapn' : 0,
       'verbose' : args.verbose,
-      'poisson_weights' : None
+      'poisson_weights' : None,
+      'strapn' : 0,
     }
     
     # list of configurations to launch
@@ -186,7 +195,7 @@ if __name__ == "__main__":
     if args.run_systematics:
       for TrackVariation in range(0, 9):
         for EvtVariation in range(0, 2):
-          temp = training_conf.copy() # copy overall
+          temp = training_conf.copy()
           temp["TrackVariation"] = TrackVariation
           temp["EvtVariation"] = EvtVariation
           confs.append(temp)
@@ -195,9 +204,9 @@ if __name__ == "__main__":
     if args.run_bootstrap_mc or args.run_bootstrap_data:
       nstraps = 40
       for strapn in range(nstraps):
-        temp = training_conf.copy() # copy overall
-        # temp["strapn"] = strapn
+        temp = training_conf.copy()
         temp["poisson_weights"] = "mc" if args.run_bootstrap_mc else "data"
+        temp["strapn"] = strapn
         confs.append(temp)
 
     # add configurations for ensembling
