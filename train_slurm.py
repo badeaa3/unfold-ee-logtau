@@ -18,6 +18,7 @@ import json
 import submitit
 import h5py
 import numpy as np
+import shutil
 
 # custom code
 import dataloader
@@ -63,7 +64,7 @@ def train(
 
     # create the event weights
     weights_mc = np.random.poisson(1, gen_mc.shape[0]) if conf["poisson_weights"] == "mc" else np.ones(gen_mc.shape[0], dtype=np.float32)
-    weights_data = np.random.poisson(1, data.shape[0]) if conf["poisson_weights"] == "data" else np.ones(data.shape[0], dtype=np.float32)
+    weights_data = np.random.poisson(1, reco_data.shape[0]) if conf["poisson_weights"] == "data" else np.ones(reco_data.shape[0], dtype=np.float32)
 
     # make omnifold dataloaders ready for training
     data = omnifold.DataLoader(
@@ -98,7 +99,8 @@ def train(
 
       # prepare multifold
       mfold = omnifold.MultiFold(
-        name = 'mfold_trial{}_strapn{}'.format(itrial, conf["strapn"]),
+        # name = 'mfold_trial{}_strapn{}'.format(itrial, conf["strapn"]),
+        name = 'mfold_trial{}'.format(itrial),
         model_reco = model1,
         model_gen = model2,
         data = data,
@@ -127,7 +129,7 @@ def train(
 
       # move log file
       mfold.log_file.close()
-      shutil(mfold.log_file.name, output_directory)
+      shutil.move(mfold.log_file.name, output_directory)
       
 if __name__ == "__main__":
 
@@ -141,7 +143,12 @@ if __name__ == "__main__":
     parser.add_argument('--run_bootstrap_data', action='store_true', default=False,help='Run the bootstrapping for data')
     parser.add_argument('--run_ensembling', action='store_true', default=False,help='Run the ensembling by retraining without changing the inputs')
     args = parser.parse_args()
-    
+
+    # double check the user didn't give a confusing setting
+    if args.run_bootstrap_mc == True and args.run_bootstrap_data == True:
+      print("Warning you set bootstrap mc and data to True. Exiting to make sure that's what you want")
+      exit()
+        
     # read in query
     if Path(args.slurm).resolve().exists():
         query_path = Path(args.slurm).resolve()
@@ -186,17 +193,10 @@ if __name__ == "__main__":
 
     # add configurations for bootstrap mc or data
     if args.run_bootstrap_mc or args.run_bootstrap_data:
-
-      # double check they aren't both true
-      if args.run_bootstrap_mc == True and args.run_bootstrap_data == True:
-        print("Warning you set bootstrap mc and data to True. Exiting to make sure that's what you want")
-        exit()
-
-      # number of bootstraps
       nstraps = 40
       for strapn in range(nstraps):
         temp = training_conf.copy() # copy overall
-        temp["strapn"] = strapn
+        # temp["strapn"] = strapn
         temp["poisson_weights"] = "mc" if args.run_bootstrap_mc else "data"
         confs.append(temp)
 
