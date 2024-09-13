@@ -50,12 +50,11 @@ def train(
     output_directory = conf["output_directory"]
     try:
         job_env = submitit.JobEnvironment()
-        job_id = job_env.job_id
-        output_directory = Path(str(output_directory).replace("%j", str(job_id)))
+        job_id = str(job_env.job_id)
     except:
-        job_id = random.randrange(16**8)
-        output_directory = Path(str(output_directory).replace("%j", "%08x" % job_id))
+        job_id = "%08x" % random.randrange(16**8)
         
+    output_directory = Path(str(output_directory).replace("%j", job_id))    
     os.makedirs(output_directory, exist_ok=True)
     print(output_directory)
     
@@ -110,7 +109,7 @@ def train(
 
       # prepare multifold
       mfold = omnifold.MultiFold(
-        name = 'mfold_trial{}_strapn{}'.format(itrial, conf["strapn"]),
+        name = 'mfold_job{}_trial{}_strapn{}'.format(job_id, itrial, conf["strapn"]),
         model_reco = model1,
         model_gen = model2,
         data = data,
@@ -137,8 +136,8 @@ def train(
         hf.create_dataset("weights", data=omnifold_weights)
 
       # move log file
-      mfold.log_file.close()
-      shutil.move(mfold.log_file.name, output_directory)
+      # mfold.log_file.close()
+      # shutil.move(mfold.log_file.name, output_directory)
       
 if __name__ == "__main__":
 
