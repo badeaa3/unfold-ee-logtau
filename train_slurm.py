@@ -57,6 +57,11 @@ def train(
     output_directory = Path(str(output_directory).replace("%j", job_id))    
     os.makedirs(output_directory, exist_ok=True)
     print(output_directory)
+
+    # write conf to json in output directory for logging
+    output_conf_name = Path(output_directory, "./conf.json").resolve()
+    with open(output_conf_name, 'w') as file:
+      json.dump(conf, file, indent=4)  # indent=4 for pretty printing
     
     # load the aleph reconstructed data, reconstructed mc, and generator mc
     reco_data, reco_mc, gen_mc, pass_reco, pass_gen = dataloader.DataLoader(conf)
@@ -65,22 +70,24 @@ def train(
     weights_mc = np.ones(gen_mc.shape[0], dtype=np.float32)
     weights_data = np.ones(reco_data.shape[0], dtype=np.float32)
 
-    # if user wants to use poisson variation for bootstrapping
-    if conf["poisson_weights"] != None:
+    # # if user wants to use poisson variation for bootstrapping
+    # if conf["poisson_weights"] != None:
 
-      np.random.seed(conf["nstrap"])
+    #   np.random.seed(conf["nstrap"])
       
-      if conf["poisson_weights"] == "mc":
-        weights_mc = np.random.poisson(1, gen_mc.shape[0])
+    #   if conf["poisson_weights"] == "mc":
+    #     weights_mc = np.random.poisson(1, gen_mc.shape[0])
         
-      if conf["poisson_weights"] == "data":
-        weights_data = np.random.poisson(1, reco_data.shape[0])
-      
+    #   if conf["poisson_weights"] == "data":
+    #     weights_data = np.random.poisson(1, reco_data.shape[0])
+
+    
     # make omnifold dataloaders ready for training
     data = omnifold.DataLoader(
       reco = reco_data,
       weight = weights_data,
-      normalize = True
+      normalize = True,
+      bootstrap = True if conf["job_type"] == "BootstrapData" else False
     )
     
     mc = omnifold.DataLoader(
@@ -89,7 +96,8 @@ def train(
       gen = gen_mc,
       pass_gen = pass_gen,
       weight = weights_mc,
-      normalize=True
+      normalize=True,
+      bootstrap = True if conf["job_type"] == "BootstrapMC" else False
     )
     
     # make weights directory
@@ -97,47 +105,46 @@ def train(
     weights_folder.mkdir()
     weights_folder = str(weights_folder)
 
-    for itrial in range(conf['ntrial']):
+    # for itrial in range(conf['ntrial']):
 
       # clear previous session
-      K.clear_session()
+      # K.clear_session()
       
-      # prepare networks
-      ndim = reco_data.shape[1] # Number of features we are going to create = thrust
-      model1 = omnifold.MLP(ndim)
-      model2 = omnifold.MLP(ndim)
-
-      # prepare multifold
-      mfold = omnifold.MultiFold(
-        name = 'mfold_job{}_trial{}_strapn{}'.format(job_id, itrial, conf["strapn"]),
-        model_reco = model1,
-        model_gen = model2,
-        data = data,
-        mc = mc,
-        batch_size = conf["batch_size"],
-        epochs = conf["epochs"],
-        lr = conf["lr"],
-        niter = conf["niter"],
-        weights_folder = weights_folder,
-        verbose = conf["verbose"],
-        early_stop = conf["early_stop"],
-      )
-
-      # launch training
-      mfold.Preprocessing()
-      mfold.Unfold()
+    # prepare networks
+    ndim = reco_data.shape[1] # Number of features we are going to create = thrust
+    model1 = omnifold.MLP(ndim)
+    model2 = omnifold.MLP(ndim)
     
-      # get weights
-      omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2)
+    # prepare multifold
+    mfold = omnifold.MultiFold(
+      name = 'mfold_job{}'.format(job_id),
+      # name = 'mfold_job{}_trial{}'.format(job_id, itrial),
+      model_reco = model1,
+      model_gen = model2,
+      data = data,
+      mc = mc,
+      weights_folder = weights_folder,
+      log_folder = output_directory,
+      batch_size = conf["batch_size"],
+      epochs = conf["epochs"],
+      lr = conf["lr"],
+      niter = conf["niter"],
+      # verbose = conf["verbose"],
+      early_stop = conf["early_stop"],
+    )
     
-      # save weights to h5 file
-      outFileName = Path(output_directory, f"omnifold_weights_trial{itrial}.h5").resolve()
-      with h5py.File(outFileName, 'w') as hf:
-        hf.create_dataset("weights", data=omnifold_weights)
-
-      # move log file
-      # mfold.log_file.close()
-      # shutil.move(mfold.log_file.name, output_directory)
+    # launch training
+    # mfold.Preprocessing()
+    mfold.Unfold()
+    
+    # get weights
+    omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2)
+    
+    # save weights to h5 file
+    # outFileName = Path(output_directory, f"omnifold_weights_trial{itrial}.h5").resolve()
+    outFileName = Path(output_directory, f"omnifold_weights.h5").resolve()
+    with h5py.File(outFileName, 'w') as hf:
+      hf.create_dataset("weights", data=omnifold_weights)
       
 if __name__ == "__main__":
 
@@ -153,9 +160,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # double check the user didn't give a confusing setting
-    if args.run_bootstrap_mc == True and args.run_bootstrap_data == True:
-      print("Warning you set bootstrap mc and data to True. Exiting to make sure that's what you want")
-      exit()
+    # if args.run_bootstrap_mc == True and args.run_bootstrap_data == True:
+    #   print("Warning you set bootstrap mc and data to True. Exiting to make sure that's what you want")
+    #   exit()
         
     # read in query
     if Path(args.slurm).resolve().exists():
@@ -176,16 +183,29 @@ if __name__ == "__main__":
       'FILE_DATA':'/home/badea/e+e-/aleph/data/processed/20220514/LEP1Data1994_recons_aftercut-MERGED_ThrustReprocess.npz',
       'TrackVariation': 0, # nominal track selection
       'EvtVariation': 0, # nominal event selection
-      'ntrial': 40, # number of times to run the unfolding per training
-      'niter': 3,
+      #'ntrial': 1, # number of times to run multifold entirely
+      'niter': 1, # default 3
       'lr': 1e-4,
       'batch_size': 128,
-      'epochs': 50,
+      'epochs': 1, # default 50
       'early_stop': 10,
-      'verbose' : args.verbose,
-      'poisson_weights' : None,
-      'strapn' : 0,
+      #'verbose' : args.verbose,
+      #'poisson_weights' : None,
+      #'strapn' : 0,
+      'job_type' : None,
+      'i_ensemble_per_omnifold': 0, # i-th ensemble per omnifold
     }
+
+    # number of repeated trainings per omnifold configuration
+    '''
+    If we need N ensemble per omnifold. Then we need:
+    40*N trainings for ensembeling uncertainty
+    40*N trainings for data bootstrap uncertainty
+    40*N trainings for mc bootstrap uncertainty
+    18*N trainings for systematic variations
+    = 138*N
+    '''
+    n_ensemble_per_omnifold = 10
     
     # list of configurations to launch
     confs = []
@@ -194,26 +214,45 @@ if __name__ == "__main__":
     if args.run_systematics:
       for TrackVariation in range(0, 9):
         for EvtVariation in range(0, 2):
+          for iN in range(n_ensemble_per_omnifold):
+            temp = training_conf.copy()
+            temp["TrackVariation"] = TrackVariation
+            temp["EvtVariation"] = EvtVariation
+            temp["job_type"] = "Systematics"
+            temp["i_ensemble_per_omnifold"] = iN
+            confs.append(temp)
+
+    # bootstrap mc
+    n_bootstraps_mc = 40
+    if args.run_bootstrap_mc:
+      for strapn in range(n_bootstraps_mc):
+        for iN in range(n_ensemble_per_omnifold):
           temp = training_conf.copy()
-          temp["TrackVariation"] = TrackVariation
-          temp["EvtVariation"] = EvtVariation
+          # temp["poisson_weights"] = "mc"
+          temp["job_type"] = "BootstrapMC"
+          temp["i_ensemble_per_omnifold"] = iN
           confs.append(temp)
 
-    # add configurations for bootstrap mc or data
-    if args.run_bootstrap_mc or args.run_bootstrap_data:
-      nstraps = 40
-      for strapn in range(nstraps):
-        temp = training_conf.copy()
-        temp["poisson_weights"] = "mc" if args.run_bootstrap_mc else "data"
-        temp["strapn"] = strapn
-        confs.append(temp)
-
+    # bootstrap data
+    n_bootstraps_data = 40
+    if args.run_bootstrap_data:
+      for strapn in range(n_bootstraps_data):
+        for iN in range(n_ensemble_per_omnifold):
+          temp = training_conf.copy()
+          # temp["poisson_weights"] = "data"
+          temp["job_type"] = "BootstrapData"
+          temp["i_ensemble_per_omnifold"] = iN
+          confs.append(temp)
+    
     # add configurations for ensembling
+    n_ensembles = 40
     if args.run_ensembling:
-      nensemble = 40
-      for i in range(nensemble):
-        temp = training_conf.copy()
-        confs.append(temp)
+      for i in range(n_ensembles):
+        for iN in range(n_ensemble_per_omnifold):
+          temp = training_conf.copy()
+          temp["job_type"] = "Ensembling"
+          temp["i_ensemble_per_omnifold"] = iN
+          confs.append(temp)
         
     # if submitit false then just launch job
     if not query.get("submitit", False):
@@ -240,7 +279,7 @@ if __name__ == "__main__":
             if args.njobs != -1 and (iC+1) > args.njobs:
                 continue
             
-            print(conf)
+            # print(conf)
 
             job = executor.submit(train, conf) # **conf
             jobs.append(job)
