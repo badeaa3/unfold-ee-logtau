@@ -184,10 +184,10 @@ if __name__ == "__main__":
       'TrackVariation': 0, # nominal track selection
       'EvtVariation': 0, # nominal event selection
       #'ntrial': 1, # number of times to run multifold entirely
-      'niter': 1, # default 3
+      'niter': 3,
       'lr': 1e-4,
       'batch_size': 128,
-      'epochs': 1, # default 50
+      'epochs': 50,
       'early_stop': 10,
       #'verbose' : args.verbose,
       #'poisson_weights' : None,
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     18*N trainings for systematic variations
     = 138*N
     '''
-    n_ensemble_per_omnifold = 10
+    n_ensemble_per_omnifold = 25
     
     # list of configurations to launch
     confs = []
