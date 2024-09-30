@@ -1,0 +1,16 @@
+{
+    "submitit": true,
+    "slurm": {
+	"slurm_job_name": "sample",
+        "slurm_account": "m3246",
+	"slurm_gpus_per_node" : 1,
+	"slurm_cpus_per_task" : 4,
+	"slurm_nodes" : 1,
+	"slurm_constraint" : "gpu",
+	"slurm_qos" : "regular",
+	"slurm_additional_parameters" : {
+	    "gpu-bind": "none"
+	},
+        "slurm_time": "2:00:00"
+    }
+}
