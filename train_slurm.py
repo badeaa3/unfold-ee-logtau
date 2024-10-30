@@ -180,7 +180,7 @@ if __name__ == "__main__":
       'output_directory' : str(top_dir),
       'FILE_MC':'/global/homes/b/badea/aleph/data/processed/20220514/alephMCRecoAfterCutPaths_1994_ThrustReprocess.npz',
       'FILE_DATA':'/global/homes/b/badea/aleph/data/processed/20220514/LEP1Data1994_recons_aftercut-MERGED_ThrustReprocess.npz',
-      'TrackVariation': 1, # nominal track selection
+      'TrackVariation': 1, # nominal track selection as written here https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L143
       'EvtVariation': 0, # nominal event selection
       'niter': 3,
       'lr': 1e-4,
@@ -201,25 +201,34 @@ if __name__ == "__main__":
     18*N trainings for systematic variations
     = 138*N
     '''
-    n_ensemble_per_omnifold = 3 # this will be scaled by 4 from the running 4 copies on each node
+    n_ensemble_per_omnifold = 4 # this will be scaled by 4 from the running 4 copies on each node
     
     # list of configurations to launch
     confs = []
 
     # add configurations for track and event selection systematic variations
+    # UPDATE THIS BEFORE RUNNING TO JUST RUN THE SYSTEMATICS YOU WANT
     if args.run_systematics:
       for iN in range(n_ensemble_per_omnifold):
-        for TrackVariation in range(0, 9):
-          for EvtVariation in range(0, 2):
-            temp = training_conf.copy()
-            temp["TrackVariation"] = TrackVariation
-            temp["EvtVariation"] = EvtVariation
-            temp["job_type"] = "Systematics"
-            temp["i_ensemble_per_omnifold"] = iN
-            confs.append(temp)
+
+        # track selections defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L141-L150
+        for TrackVariation in range(2, 9):
+          temp = training_conf.copy()
+          temp["TrackVariation"] = TrackVariation
+          temp["job_type"] = "Systematics"
+          temp["i_ensemble_per_omnifold"] = iN
+          confs.append(temp)
+
+        # event selection defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L192-L197
+        for EvtVariation in [1]:
+          temp = training_conf.copy()
+          temp["EvtVariation"] = EvtVariation
+          temp["job_type"] = "Systematics"
+          temp["i_ensemble_per_omnifold"] = iN
+          confs.append(temp)
 
     # bootstrap mc
-    n_bootstraps_mc = 40
+    n_bootstraps_mc = 10
     if args.run_bootstrap_mc:
       for iN in range(n_ensemble_per_omnifold):
         for strapn in range(n_bootstraps_mc):
@@ -229,7 +238,7 @@ if __name__ == "__main__":
           confs.append(temp)
 
     # bootstrap data
-    n_bootstraps_data = 40
+    n_bootstraps_data = 10
     if args.run_bootstrap_data:
       for iN in range(n_ensemble_per_omnifold):
         for strapn in range(n_bootstraps_data):
@@ -239,7 +248,7 @@ if __name__ == "__main__":
           confs.append(temp)
     
     # add configurations for ensembling
-    n_ensembles = 40
+    n_ensembles = 100
     if args.run_ensembling:
       for iN in range(n_ensemble_per_omnifold):
         for i in range(n_ensembles):

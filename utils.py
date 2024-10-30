@@ -50,3 +50,47 @@ def HistRoutine(feed_dict,xlabel='',ylabel='',reference_name='Geant4',logy=False
         FormatFig(xlabel = xlabel, ylabel = ylabel,ax0=ax0) 
         
     return fig,ax0
+
+def calc_hist(vals, bins=10, weights=None, density=True):
+    
+    if weights is None:
+        weights = np.ones(vals.shape)
+    
+    # compute histogram
+    hist, bins = np.histogram(vals, bins=bins, weights=weights)
+    
+    # compute which bins the values are in
+    digits = np.digitize(vals, bins)
+
+    # compute the errors per bin
+    # note that lowest bin value that digitize returns is 1
+    # hence the range in the following list comprehension should start at 1
+    errs = np.asarray([np.linalg.norm(weights[digits==i]) for i in range(1, len(bins))])
+
+    # handle normalization
+    if density:
+        binwidths = bins[1:] - bins[:-1]
+        # print(binwidths)
+        density_int = weights.sum() * binwidths # (bins[1] - bins[0])
+        hist /= density_int
+        errs /= density_int
+        
+    return hist, errs, bins
+
+# function to propagate errors on division
+def propagate_error_division(A, deltaA, B, deltaB):
+    """
+    Compute the propagated error for division of two quantities A and B with their uncertainties.
+
+    Parameters:
+    A (numpy array): Array of values for A.
+    deltaA (numpy array): Array of uncertainties for A.
+    B (numpy array): Array of values for B.
+    deltaB (numpy array): Array of uncertainties for B.
+
+    Returns:
+    numpy array: Array of tuples containing (C, deltaC) for corresponding A, deltaA, B, deltaB.
+    """
+    C = A / B
+    deltaC = C * np.sqrt((deltaA / A)**2 + (deltaB / B)**2)
+    return deltaC
