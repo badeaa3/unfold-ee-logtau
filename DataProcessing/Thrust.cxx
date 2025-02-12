@@ -32,7 +32,9 @@ std::map<std::string, float> getTrackVariation(
   float z0Cut, // 10
   /* neutral track selections */
   float ECut, // 0.4
-  float neutralTracksAbsCosThCut // 0.98
+  float neutralTracksAbsCosThCut, // 0.98
+  bool keepChargedTracks, // include charged tracks in calculation
+  bool keepNeutralTracks  // include neutral tracks in calculation
 ) {
   return std::map<std::string, float> {
     {"applyTrackSelection", applySelection},
@@ -42,7 +44,9 @@ std::map<std::string, float> getTrackVariation(
     {"d0Cut", d0Cut},
     {"z0Cut", z0Cut},
     {"ECut", ECut},
-    {"neutralTracksAbsCosThCut", neutralTracksAbsCosThCut}
+    {"neutralTracksAbsCosThCut", neutralTracksAbsCosThCut},
+    {"keepChargedTracks", keepChargedTracks},
+    {"keepNeutralTracks", keepNeutralTracks},
   };
 }
 
@@ -139,15 +143,18 @@ int main(int argc, char* argv[]) {
 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Track Variations %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::vector<std::map<std::string, float> > trackVariations; // vector of variations
-  trackVariations.push_back(getTrackVariation(0, 4, 0.94, 0.2, 2, 10, 0.4, 0.98)); // no track selection
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98)); // 2PC track selection
+  trackVariations.push_back(getTrackVariation(0, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true)); // no track selection
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true)); // 2PC track selection
   for (int i = 5; i <= 7; i++){
-    trackVariations.push_back(getTrackVariation(1, i, 0.94, 0.2, 2, 10, 0.4, 0.98)); // 2PC ntpc variations
+    trackVariations.push_back(getTrackVariation(1, i, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true)); // 2PC ntpc variations
   }
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.2, 0.98)); // neutral ECut variation scaling down by 1/2
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.8, 0.98)); // neutral ECut variation scaling up by 2
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.96)); // neutralTracksAbsCosThCut subtracting 0.02
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 1.00)); // neutralTracksAbsCosThCut adding 0.02
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.2, 0.98, true, true)); // neutral ECut variation scaling down by 1/2
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.8, 0.98, true, true)); // neutral ECut variation scaling up by 2
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.96, true, true)); // neutralTracksAbsCosThCut subtracting 0.02
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 1.00, true, true)); // neutralTracksAbsCosThCut adding 0.02
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, false)); // charged tracks only thrust
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, false, true)); // neutral tracks only thrust
+  
 
   // vectors for selected objects
   std::vector<int> selectedParts;
@@ -161,6 +168,7 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<TTree> varDefs (new TTree("TrackVariationDefinitions", ""));
   int nTPCcut;
   float applyTrackSelection, chargedTracksAbsCosThCut, ptCut, d0Cut, z0Cut, ECut, neutralTracksAbsCosThCut;
+  bool keepChargedTracks, keepNeutralTracks;
   varDefs->Branch("applyTrackSelection", &applyTrackSelection);
   varDefs->Branch("nTPCcut", &nTPCcut);
   varDefs->Branch("chargedTracksAbsCosThCut", &chargedTracksAbsCosThCut);
@@ -169,6 +177,8 @@ int main(int argc, char* argv[]) {
   varDefs->Branch("z0Cut", &z0Cut);
   varDefs->Branch("ECut", &ECut);
   varDefs->Branch("neutralTracksAbsCosThCut", &neutralTracksAbsCosThCut);
+  varDefs->Branch("keepChargedTracks", &keepChargedTracks);
+  varDefs->Branch("keepNeutralTracks", &keepNeutralTracks);
 
   // push back for each variation and save to tree
   for (int iV = 0; iV < trackVariations.size(); iV++) {
@@ -185,6 +195,8 @@ int main(int argc, char* argv[]) {
     z0Cut = trackVariations.at(iV)["z0Cut"];
     ECut = trackVariations.at(iV)["ECut"];
     neutralTracksAbsCosThCut = trackVariations.at(iV)["neutralTracksAbsCosThCut"];
+    keepChargedTracks = trackVariations.at(iV)["keepChargedTracks"];
+    keepNeutralTracks = trackVariations.at(iV)["keepNeutralTracks"];
     varDefs->Fill();
   }
   varDefs->Write();
@@ -350,7 +362,10 @@ int main(int argc, char* argv[]) {
           // add to input list for thrust. check for -1 which indicates use all tracks for thrust
           bool keeptrack = tree == "tgen" || tree == "tgenBefore"; // generator level always keep
           keeptrack = keeptrack || trackVariations.at(iV)["applyTrackSelection"] == 0 ; // track selection should not be applied
-          keeptrack = keeptrack || chargedTrackSelections || neutralTrackSelections; // passes selection
+	  // make choice if charged and neutral tracks are kept in thrust calculation and then verify their selection
+	  keeptrack = keeptrack || (trackVariations.at(iV)["keepChargedTracks"] && chargedTrackSelections);
+	  keeptrack = keeptrack	|| (trackVariations.at(iV)["keepNeutralTracks"] && neutralTrackSelections);
+	  // save the track 
           if (keeptrack) {
             selectedParts.at(iV) += 1;
             selectedPx.at(iV).push_back(px[iP]);
