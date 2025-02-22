@@ -10,6 +10,7 @@ Analysis: MITHIG-MOD-20-001 Omnifold applied to ALEPH data
 #include "TVector3.h"
 #include "TMath.h"
 #include "TString.h"
+#include "TH1D.h"
 
 // thrust code
 #include "thrustTools.h"
@@ -53,13 +54,13 @@ std::map<std::string, float> getTrackVariation(
 // event selection variation
 std::map<std::string, float> getEventVariation(
   /* event selections */
-  float TotalChgEnergyCut, // 2PC paper value: 15
+  float TotalTrkEnergyCut, // 2PC paper value: 15
   float AbsCosSThetaCut, // 0.82
   float NTrkCut, // 5
   float NeuNchCut // 13
 ) {
   return std::map<std::string, float> {
-    {"TotalChgEnergyCut", TotalChgEnergyCut},
+    {"TotalTrkEnergyCut", TotalTrkEnergyCut},
     {"AbsCosSThetaCut", AbsCosSThetaCut},
     {"NTrkCut", NTrkCut},
     {"NeuNchCut", NeuNchCut}
@@ -128,6 +129,7 @@ int main(int argc, char* argv[]) {
   bool passesNTupleAfterCut;
   Short_t pwflag[maxPart];
   float theta[maxPart];
+  float phi[maxPart];
   float pt[maxPart];
   float d0[maxPart];
   float z0[maxPart];
@@ -181,7 +183,7 @@ int main(int argc, char* argv[]) {
   varDefs->Branch("keepNeutralTracks", &keepNeutralTracks);
 
   // push back for each variation and save to tree
-  for (int iV = 0; iV < trackVariations.size(); iV++) {
+  for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
     selectedParts.push_back(0);
     selectedPx.push_back(std::vector<float>());
     selectedPy.push_back(std::vector<float>());
@@ -210,26 +212,26 @@ int main(int argc, char* argv[]) {
 
   // save variation definitions to a tree
   std::unique_ptr<TTree> evtVarDefs (new TTree("EventVariationDefinitions", ""));
-  float TotalChgEnergyCut, AbsCosSThetaCut;
+  float TotalTrkEnergyCut, AbsCosSThetaCut;
   int NTrkCut, NeuNchCut;
-  evtVarDefs->Branch("TotalChgEnergyCut", &TotalChgEnergyCut);
+  evtVarDefs->Branch("TotalTrkEnergyCut", &TotalTrkEnergyCut);
   evtVarDefs->Branch("AbsCosSThetaCut", &AbsCosSThetaCut);
   evtVarDefs->Branch("NTrkCut", &NTrkCut);
   evtVarDefs->Branch("NeuNchCut", &NeuNchCut);
-  for (int iV = 0; iV < eventVariations.size(); iV++) {
-    TotalChgEnergyCut = eventVariations.at(iV)["TotalChgEnergyCut"];
-    AbsCosSThetaCut = eventVariations.at(iV)["AbsCosSThetaCut"];
-    NTrkCut = eventVariations.at(iV)["NTrkCut"];
-    NeuNchCut = eventVariations.at(iV)["NeuNchCut"];
+  for (unsigned int iEV = 0; iEV < eventVariations.size(); iEV++) {
+    TotalTrkEnergyCut = eventVariations.at(iEV)["TotalTrkEnergyCut"];
+    AbsCosSThetaCut = eventVariations.at(iEV)["AbsCosSThetaCut"];
+    NTrkCut = eventVariations.at(iEV)["NTrkCut"];
+    NeuNchCut = eventVariations.at(iEV)["NeuNchCut"];
     evtVarDefs->Fill();
   }
   evtVarDefs->Write();
 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Data Tree %%%%%%%%%%%%%%%%%%%%%%%%%%#
-  // std::vector<float> Thrust, TotalChgEnergy, STheta;
+  // std::vector<float> Thrust, TotalTrkEnergy, STheta;
   // std::vector<int> NTrk, Neu;
-  // std::vector<std::vector<bool> > passEventSelection(eventVariations.size()); // allocate memory here without push_back to avoid copying which confuses tree->Branch
-
+  // std::vector<std::vector<bool> > passEventSelection(eventVariations.size()); // allocate memory here without push_back to avoid copying which confuses tree->Branch  
+    
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Event Loop %%%%%%%%%%%%%%%%%%%%%%%%%%#
 
   // timekeeper
@@ -249,6 +251,7 @@ int main(int argc, char* argv[]) {
     t->SetBranchAddress("passesNTupleAfterCut", &passesNTupleAfterCut);
     t->SetBranchAddress("pwflag", &pwflag);
     t->SetBranchAddress("theta", &theta);
+    t->SetBranchAddress("phi", &phi);
     t->SetBranchAddress("pt", &pt);
     t->SetBranchAddress("d0", &d0);
     t->SetBranchAddress("z0", &z0);
@@ -262,19 +265,49 @@ int main(int argc, char* argv[]) {
     // create output tree
     std::unique_ptr<TTree> tout (new TTree(tree.c_str(), ""));
     unsigned long long uniqueIDCopy; 
-    std::vector<float> Thrust, TotalChgEnergy, STheta;
+    std::vector<float> Thrust, TotalTrkEnergy, STheta, Sph, MissP;
     std::vector<int> NTrk, Neu;
     std::vector<std::vector<bool> > passEventSelection(eventVariations.size()); // allocate memory here without push_back to avoid copying which confuses tree->Branch
     tout->Branch("uniqueID", &uniqueIDCopy);
     tout->Branch("Thrust", &Thrust);
-    tout->Branch("TotalChgEnergy", &TotalChgEnergy);
+    tout->Branch("TotalTrkEnergy", &TotalTrkEnergy);
     tout->Branch("NTrk", &NTrk);
     tout->Branch("Neu", &Neu);
     tout->Branch("STheta", &STheta);
-    for (int iV = 0; iV < eventVariations.size(); iV++) {
-      tout->Branch(("passEventSelection_" + std::to_string(iV)).c_str(), &passEventSelection.at(iV));
+    tout->Branch("Sphericity", &Sph);
+    tout->Branch("MissP", &MissP);
+    for (unsigned int iEV = 0; iEV < eventVariations.size(); iEV++) {
+      tout->Branch(("passEventSelection_" + std::to_string(iEV)).c_str(), &passEventSelection.at(iEV));
     }
 
+    // create object level histograms for each pwflag
+    std::map<std::pair<int, std::string>, TH1D*> particleHists;
+    for(int iP=0; iP <= 5; iP++){
+      particleHists[{iP, "cosTheta"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "cosTheta").c_str(), ";cos(#theta);Entries", 100, -1, 1);
+      particleHists[{iP, "phi"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "phi").c_str(), ";#phi;Entries", 100, -4, 4);
+      particleHists[{iP, "pt"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pt").c_str(), ";p_{T} [GeV];Entries", 100, 0, 20);
+      particleHists[{iP, "ntpc"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "ntpc").c_str(), ";NTPC;Entries", 31, -0.5, 30.5);
+      particleHists[{iP, "d0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "d0").c_str(), ";d_{0} [cm];Entries", 120, -3, 3);
+      particleHists[{iP, "z0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "z0").c_str(), ";z_{0} [cm];Entries", 100, -20, 20);
+      particleHists[{iP, "pmag"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pmag").c_str(), ";|#vec{p}| [GeV];Entries", 60, 0, 30);
+      particleHists[{iP, "mass"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "mass").c_str(), ";Mass [GeV];Entries", 100, 0, 20);
+      particleHists[{iP, "energy"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "energy").c_str(), ";Energy [GeV];Entries", 100, 0, 20);
+    }
+
+    // create event level histograms for each track selection variation
+    std::map<std::pair<int, std::string>, TH1D*> eventHists;
+    for (unsigned int iV = 0; iV < trackVariations.size(); iV++){
+      eventHists[{iV, "ntrk"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrk").c_str(), ";NTrk;Entries", 71, -0.5, 70.5);
+      eventHists[{iV, "nneu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "nneu").c_str(), ";NNeu;Entries", 31, -0.5, 30.5);
+      eventHists[{iV, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrkPlusNeu").c_str(), ";NTrk+NNeu;Entries", 101, -0.5, 100.5);
+      eventHists[{iV, "eTrk"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "eTrk").c_str(), ";E_{Trk} [GeV];Entries", 100, 0, 200);
+      eventHists[{iV, "cosThetaSph"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaSph").c_str(), ";cos(#theta_{sph});Entries", 100, -1, 1);
+      eventHists[{iV, "sphericity"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
+      eventHists[{iV, "thrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0, 1);
+      eventHists[{iV, "missP"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
+    }
+
+    
     // interpret divide and thisdiv to event range
     int nEvents = t->GetEntries();
     int evtperdiv = nEvents / divide;
@@ -305,19 +338,21 @@ int main(int argc, char* argv[]) {
       uniqueIDCopy = uniqueID;
 
       // reset variables
-      TotalChgEnergy.clear();
+      TotalTrkEnergy.clear();
       NTrk.clear();
       Neu.clear();
       STheta.clear();
+      Sph.clear();
+      MissP.clear();
       Thrust.clear();
-      for (int iV = 0; iV < trackVariations.size(); iV++) {
+      for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
         if (genTree && iV > 0 ) break;
         selectedParts.at(iV) = 0;
         selectedPx.at(iV).clear();
         selectedPy.at(iV).clear();
         selectedPz.at(iV).clear();
         selectedPwflag.at(iV).clear();
-        TotalChgEnergy.push_back(0);
+        TotalTrkEnergy.push_back(0);
         NTrk.push_back(0);
         Neu.push_back(0);
       }
@@ -328,12 +363,26 @@ int main(int argc, char* argv[]) {
 
         if (debug) std::cout << TString::Format("iP %d, pwflag %d, theta %f, pt %f, d0 %f, z0 %f, ntpc %d", iP, pwflag[iP], theta[iP], pt[iP], d0[iP], z0[iP], ntpc[iP]) << std::endl;
 
+	// compute the particle energy
+	float energy = TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
+	
+	// fill histogram for all particles
+	particleHists[{pwflag[iP], "cosTheta"}]->Fill(cos(theta[iP]));
+	particleHists[{pwflag[iP], "phi"}]->Fill(phi[iP]);
+	particleHists[{pwflag[iP], "pt"}]->Fill(pt[iP]);
+	particleHists[{pwflag[iP], "ntpc"}]->Fill(ntpc[iP]);
+	particleHists[{pwflag[iP], "d0"}]->Fill(d0[iP]);
+	particleHists[{pwflag[iP], "z0"}]->Fill(z0[iP]);
+	particleHists[{pwflag[iP], "pmag"}]->Fill(pmag[iP]);
+	particleHists[{pwflag[iP], "mass"}]->Fill(mass[iP]);
+	particleHists[{pwflag[iP], "energy"}]->Fill(energy);
+	  
         // loop over variations
-        for (int iV = 0; iV < trackVariations.size(); iV++) {
+        for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
 
           // if tgen or tgenbefore only do the first nominal variation
           if (genTree && iV > 0 ) break;
-
+	  	  
           // count charged tracks
           bool chargedTrackSelections =
             (pwflag[iP] >= 0 && pwflag[iP] <= 2)
@@ -344,7 +393,7 @@ int main(int argc, char* argv[]) {
             && ntpc[iP] >= trackVariations.at(iV)["nTPCcut"];
           // count charged tracks
           if (chargedTrackSelections) {
-            TotalChgEnergy.at(iV) += TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
+            TotalTrkEnergy.at(iV) += energy; //TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
             NTrk.at(iV) += 1;
             if (debug) std::cout << "Passed charged track selection" << std::endl;
           }
@@ -352,7 +401,8 @@ int main(int argc, char* argv[]) {
           // count neutral tracks
           bool neutralTrackSelections =
             (pwflag[iP] == 4 || pwflag[iP] == 5)
-            && TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]) >= trackVariations.at(iV)["ECut"]
+            // && TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]) >= trackVariations.at(iV)["ECut"]
+	    && energy >= trackVariations.at(iV)["ECut"]
             && TMath::Abs(cos(theta[iP])) <= trackVariations.at(iV)["neutralTracksAbsCosThCut"];
           if (neutralTrackSelections) {
             Neu.at(iV) += 1;
@@ -381,36 +431,67 @@ int main(int argc, char* argv[]) {
       if (debug) std::cout << TString::Format("Nominal N Passing Charged Tracks %d, N Passing Neutral Tracks %d, and selected tracks %d", NTrk.at(0), Neu.at(0), selectedParts.at(0)) << std::endl;
 
       // compute event level variables
-      for (int iV = 0; iV < trackVariations.size(); iV++) {
+      for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
 
         // if tgen or tgenbefore only do the first nominal variation
         if (genTree && iV > 0 ) break;
 
+	// calculate the missing momentum vector
+	TVector3 met = TVector3(0, 0, 0);
+	for (int t = 0; t < selectedParts.at(iV); t++) {
+	  // std::cout<<selectedPx.at(iV).at(t) << ", " << selectedPy.at(iV).at(t) << ", " << selectedPz.at(iV).at(t) << std::endl;
+	  met += (TVector3(selectedPx.at(iV).at(t), selectedPy.at(iV).at(t), selectedPz.at(iV).at(t)));
+	}
+	met = -met;
+	MissP.push_back(met.Mag());
+  
         // sphericity
         spher = std::make_unique<Sphericity>(Sphericity(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), selectedPwflag.at(iV).data(), false));
         STheta.push_back(spher->sphericityAxis().Theta());
+	Sph.push_back(spher->sphericity());
+      
         // thrust
         thrust = getThrust(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), THRUST::OPTIMAL); //, false, false, pDataReader.weight);
         Thrust.push_back(thrust.Mag());
 
         // compute event selection passes
-        for (int iEV = 0; iEV < eventVariations.size(); iEV++) {
+        for (unsigned int iEV = 0; iEV < eventVariations.size(); iEV++) {
           passEventSelection.at(iEV).push_back(
             passesNTupleAfterCut == 1
-            && TotalChgEnergy.at(iV) >= eventVariations.at(iEV)["TotalChgEnergyCut"]
+            && TotalTrkEnergy.at(iV) >= eventVariations.at(iEV)["TotalTrkEnergyCut"]
             && TMath::Abs(TMath::Cos(STheta.at(iV))) <= eventVariations.at(iEV)["AbsCosSThetaCut"]
             && NTrk.at(iV) >= eventVariations.at(iEV)["NTrkCut"]
             && (NTrk.at(iV) + Neu.at(iV)) >= eventVariations.at(iEV)["NeuNchCut"]
           );
         }
 
+	// fill histograms
+	eventHists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
+	eventHists[{iV, "nneu"}]->Fill(Neu.at(iV));
+	eventHists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
+	eventHists[{iV, "eTrk"}]->Fill(TotalTrkEnergy.at(iV));
+	eventHists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
+	eventHists[{iV, "sphericity"}]->Fill(Sph.at(iV));
+	eventHists[{iV, "thrust"}]->Fill(Thrust.at(iV));
+	eventHists[{iV, "missP"}]->Fill(MissP.at(iV));
+      
       }
       if (debug) std::cout << TString::Format("Nominal STheta %f, Thrust %f", STheta.at(0), Thrust.at(0)) << std::endl;
 
       tout->Fill();
     }
 
+    // write tree
     tout->Write();
+
+    // write histograms
+    for (auto &entry : particleHists) {
+        entry.second->Write();
+    }
+    for (auto &entry : eventHists) {
+        entry.second->Write();
+    }
+    
     std::cout << "\n" << std::endl;
   }
 
