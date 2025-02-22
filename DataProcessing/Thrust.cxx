@@ -297,6 +297,7 @@ int main(int argc, char* argv[]) {
     // create event level histograms for each track selection variation
     std::map<std::pair<int, std::string>, TH1D*> eventHists;
     for (unsigned int iV = 0; iV < trackVariations.size(); iV++){
+      if (genTree && iV > 0 ) break;
       eventHists[{iV, "ntrk"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrk").c_str(), ";NTrk;Entries", 71, -0.5, 70.5);
       eventHists[{iV, "nneu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "nneu").c_str(), ";NNeu;Entries", 31, -0.5, 30.5);
       eventHists[{iV, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrkPlusNeu").c_str(), ";NTrk+NNeu;Entries", 101, -0.5, 100.5);
@@ -367,15 +368,17 @@ int main(int argc, char* argv[]) {
 	float energy = TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
 	
 	// fill histogram for all particles
-	particleHists[{pwflag[iP], "cosTheta"}]->Fill(cos(theta[iP]));
-	particleHists[{pwflag[iP], "phi"}]->Fill(phi[iP]);
-	particleHists[{pwflag[iP], "pt"}]->Fill(pt[iP]);
-	particleHists[{pwflag[iP], "ntpc"}]->Fill(ntpc[iP]);
-	particleHists[{pwflag[iP], "d0"}]->Fill(d0[iP]);
-	particleHists[{pwflag[iP], "z0"}]->Fill(z0[iP]);
-	particleHists[{pwflag[iP], "pmag"}]->Fill(pmag[iP]);
-	particleHists[{pwflag[iP], "mass"}]->Fill(mass[iP]);
-	particleHists[{pwflag[iP], "energy"}]->Fill(energy);
+	if(pwflag[iP] >= 0 && pwflag[iP] <= 5){
+	  particleHists[{pwflag[iP], "cosTheta"}]->Fill(cos(theta[iP]));
+	  particleHists[{pwflag[iP], "phi"}]->Fill(phi[iP]);
+	  particleHists[{pwflag[iP], "pt"}]->Fill(pt[iP]);
+	  particleHists[{pwflag[iP], "ntpc"}]->Fill(ntpc[iP]);
+	  particleHists[{pwflag[iP], "d0"}]->Fill(d0[iP]);
+	  particleHists[{pwflag[iP], "z0"}]->Fill(z0[iP]);
+	  particleHists[{pwflag[iP], "pmag"}]->Fill(pmag[iP]);
+	  particleHists[{pwflag[iP], "mass"}]->Fill(mass[iP]);
+	  particleHists[{pwflag[iP], "energy"}]->Fill(energy);
+	}
 	  
         // loop over variations
         for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
@@ -439,7 +442,6 @@ int main(int argc, char* argv[]) {
 	// calculate the missing momentum vector
 	TVector3 met = TVector3(0, 0, 0);
 	for (int t = 0; t < selectedParts.at(iV); t++) {
-	  // std::cout<<selectedPx.at(iV).at(t) << ", " << selectedPy.at(iV).at(t) << ", " << selectedPz.at(iV).at(t) << std::endl;
 	  met += (TVector3(selectedPx.at(iV).at(t), selectedPy.at(iV).at(t), selectedPz.at(iV).at(t)));
 	}
 	met = -met;
@@ -451,7 +453,19 @@ int main(int argc, char* argv[]) {
 	Sph.push_back(spher->sphericity());
       
         // thrust
-        thrust = getThrust(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), THRUST::OPTIMAL); //, false, false, pDataReader.weight);
+	// TVector3 getThrust(int n, float *px, float *py, float *pz, THRUST::algorithm algo = THRUST::HERWIG, bool doWeight = false, bool doInvertWeight = false, float* weight = NULL, bool doMET = false, Short_t *pwflag = NULL)
+        thrust = getThrust(
+			   selectedParts.at(iV), // n
+			   selectedPx.at(iV).data(), // px
+			   selectedPy.at(iV).data(), // py
+			   selectedPz.at(iV).data(), // pz 
+			   THRUST::OPTIMAL, // THRUST::algorithm
+			   false, // doWeight
+			   false, // doInvertWeight
+			   NULL, // weight
+			   false,  // doMET
+			   NULL // pwflag
+			   );
         Thrust.push_back(thrust.Mag());
 
         // compute event selection passes
