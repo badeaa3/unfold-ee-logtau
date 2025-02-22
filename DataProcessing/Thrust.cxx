@@ -35,7 +35,8 @@ std::map<std::string, float> getTrackVariation(
   float ECut, // 0.4
   float neutralTracksAbsCosThCut, // 0.98
   bool keepChargedTracks, // include charged tracks in calculation
-  bool keepNeutralTracks  // include neutral tracks in calculation
+  bool keepNeutralTracks,  // include neutral tracks in calculation
+  bool doMET // include missing momentum vector in calculation
 ) {
   return std::map<std::string, float> {
     {"applyTrackSelection", applySelection},
@@ -48,6 +49,7 @@ std::map<std::string, float> getTrackVariation(
     {"neutralTracksAbsCosThCut", neutralTracksAbsCosThCut},
     {"keepChargedTracks", keepChargedTracks},
     {"keepNeutralTracks", keepNeutralTracks},
+    {"doMET", doMET},
   };
 }
 
@@ -145,18 +147,18 @@ int main(int argc, char* argv[]) {
 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Track Variations %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::vector<std::map<std::string, float> > trackVariations; // vector of variations
-  trackVariations.push_back(getTrackVariation(0, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true)); // no track selection
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true)); // 2PC track selection
+  trackVariations.push_back(getTrackVariation(0, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // no track selection
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // 2PC track selection
   for (int i = 5; i <= 7; i++){
-    trackVariations.push_back(getTrackVariation(1, i, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true)); // 2PC ntpc variations
+    trackVariations.push_back(getTrackVariation(1, i, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // 2PC ntpc variations
   }
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.2, 0.98, true, true)); // neutral ECut variation scaling down by 1/2
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.8, 0.98, true, true)); // neutral ECut variation scaling up by 2
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.96, true, true)); // neutralTracksAbsCosThCut subtracting 0.02
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 1.00, true, true)); // neutralTracksAbsCosThCut adding 0.02
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, false)); // charged tracks only thrust
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, false, true)); // neutral tracks only thrust
-  
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.2, 0.98, true, true, false)); // neutral ECut variation scaling down by 1/2
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.8, 0.98, true, true, false)); // neutral ECut variation scaling up by 2
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.96, true, true, false)); // neutralTracksAbsCosThCut subtracting 0.02
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 1.00, true, true, false)); // neutralTracksAbsCosThCut adding 0.02
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, false, false)); // charged tracks only thrust
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, false, true, false)); // neutral tracks only thrust
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, true)); // include met in thrust
 
   // vectors for selected objects
   std::vector<int> selectedParts;
@@ -463,7 +465,7 @@ int main(int argc, char* argv[]) {
 			   false, // doWeight
 			   false, // doInvertWeight
 			   NULL, // weight
-			   false,  // doMET
+			   trackVariations.at(iV)["doMET"],  // doMET
 			   NULL // pwflag
 			   );
         Thrust.push_back(thrust.Mag());
