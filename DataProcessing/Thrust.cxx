@@ -267,7 +267,7 @@ int main(int argc, char* argv[]) {
     // create output tree
     std::unique_ptr<TTree> tout (new TTree(tree.c_str(), ""));
     unsigned long long uniqueIDCopy; 
-    std::vector<float> Thrust, TotalTrkEnergy, STheta, Sph, MissP;
+    std::vector<float> Thrust, TotalTrkEnergy, STheta, Sph, MissP, EVis, TTheta;
     std::vector<int> NTrk, Neu;
     std::vector<std::vector<bool> > passEventSelection(eventVariations.size()); // allocate memory here without push_back to avoid copying which confuses tree->Branch
     tout->Branch("uniqueID", &uniqueIDCopy);
@@ -278,6 +278,8 @@ int main(int argc, char* argv[]) {
     tout->Branch("STheta", &STheta);
     tout->Branch("Sphericity", &Sph);
     tout->Branch("MissP", &MissP);
+    tout->Branch("EVis", &EVis);
+    tout->Branch("TTheta", &TTheta);
     for (unsigned int iEV = 0; iEV < eventVariations.size(); iEV++) {
       tout->Branch(("passEventSelection_" + std::to_string(iEV)).c_str(), &passEventSelection.at(iEV));
     }
@@ -308,6 +310,8 @@ int main(int argc, char* argv[]) {
       eventHists[{iV, "sphericity"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
       eventHists[{iV, "thrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0, 1);
       eventHists[{iV, "missP"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
+      eventHists[{iV, "evis"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "evis").c_str(), ";E_{Vis} [GeV];Entries", 100, 0, 200);
+      eventHists[{iV, "cosThetaThrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaThrust").c_str(), ";cos(#theta_{Thrust});Entries", 100, -1, 1);
     }
 
     
@@ -347,7 +351,9 @@ int main(int argc, char* argv[]) {
       STheta.clear();
       Sph.clear();
       MissP.clear();
+      EVis.clear();
       Thrust.clear();
+      TTheta.clear();
       for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
         if (genTree && iV > 0 ) break;
         selectedParts.at(iV) = 0;
@@ -356,6 +362,7 @@ int main(int argc, char* argv[]) {
         selectedPz.at(iV).clear();
         selectedPwflag.at(iV).clear();
         TotalTrkEnergy.push_back(0);
+	EVis.push_back(0);
         NTrk.push_back(0);
         Neu.push_back(0);
       }
@@ -399,6 +406,7 @@ int main(int argc, char* argv[]) {
           // count charged tracks
           if (chargedTrackSelections) {
             TotalTrkEnergy.at(iV) += energy; //TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
+	    EVis.at(iV) += energy;
             NTrk.at(iV) += 1;
             if (debug) std::cout << "Passed charged track selection" << std::endl;
           }
@@ -410,6 +418,7 @@ int main(int argc, char* argv[]) {
 	    && energy >= trackVariations.at(iV)["ECut"]
             && TMath::Abs(cos(theta[iP])) <= trackVariations.at(iV)["neutralTracksAbsCosThCut"];
           if (neutralTrackSelections) {
+	    EVis.at(iV) += energy;
             Neu.at(iV) += 1;
             if (debug) std::cout << "Passed neutral track selection" << std::endl;
           }
@@ -469,7 +478,8 @@ int main(int argc, char* argv[]) {
 			   NULL // pwflag
 			   );
         Thrust.push_back(thrust.Mag());
-
+	TTheta.push_back(thrust.Theta());
+	
         // compute event selection passes
         for (unsigned int iEV = 0; iEV < eventVariations.size(); iEV++) {
           passEventSelection.at(iEV).push_back(
@@ -490,7 +500,9 @@ int main(int argc, char* argv[]) {
 	eventHists[{iV, "sphericity"}]->Fill(Sph.at(iV));
 	eventHists[{iV, "thrust"}]->Fill(Thrust.at(iV));
 	eventHists[{iV, "missP"}]->Fill(MissP.at(iV));
-      
+	eventHists[{iV, "evis"}]->Fill(EVis.at(iV));
+	eventHists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
+	
       }
       if (debug) std::cout << TString::Format("Nominal STheta %f, Thrust %f", STheta.at(0), Thrust.at(0)) << std::endl;
 
