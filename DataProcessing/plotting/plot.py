@@ -1,57 +1,8 @@
 import ROOT
-from ROOT import gROOT
-import AtlasStyle as ats
-gROOT.LoadMacro("AtlasUtils.C")
+from style import *
 
-ROOT.SetAtlasStyle()
+SetALEPHStyle()
 
-def ALEPHLabel(x, y, text=None, color=ROOT.kBlack, size=0.055):
-    """
-    Draw an 'ATLAS' label on a ROOT canvas at position (x, y), with an optional text.
-
-    Parameters:
-    - x, y: Position in NDC coordinates (0-1)
-    - text: Optional string to appear next to "ATLAS"
-    - color: ROOT color (default is black)
-    """
-    l = ROOT.TLatex()
-    l.SetNDC()
-    l.SetTextFont(72)  # Bold ATLAS font
-    l.SetTextColor(color)
-    l.SetTextSize(size)
-    
-    # Compute delx using the gPad dimensions
-    if ROOT.gPad:
-        delx = 0.115 * 696 * ROOT.gPad.GetWh() / (472 * ROOT.gPad.GetWw())
-    else:
-        delx = 0.115  # Default value if no active pad
-
-    # Draw "ATLAS"
-    l.DrawLatex(x, y, "Archived ALEPH")
-
-    # Draw additional text if provided
-    if text:
-        p = ROOT.TLatex()
-        p.SetNDC()
-        p.SetTextFont(42)  # Regular text font
-        p.SetTextColor(color)
-        p.DrawLatex(x + delx, y, text)
-
-def myText(x, y, text, color=ROOT.kBlack, align=12, size=0.03):
-    """
-    Draws a text label on a ROOT canvas at position (x, y) in NDC coordinates.
-
-    Parameters:
-    - x, y: Position in NDC coordinates (0-1)
-    - color: ROOT color (e.g., ROOT.kBlack, ROOT.kRed)
-    - text: The text string to be displayed
-    """
-    l = ROOT.TLatex()
-    l.SetTextAlign(align)
-    l.SetTextSize(size) 
-    l.SetNDC()
-    l.SetTextColor(color)
-    l.DrawLatex(x, y, text)
 
 # config
 config = []
@@ -65,13 +16,16 @@ config.append({
 })
 
 # list of names to set log
-SetLogy = []
+SetLogy = ["energy", "mass", "pmag"]
+
+# pwflag
+pwflags = ["Charged Tracks", "Charged Leptons 1", "Charged Leptons 2", "V0", "Photons", "Neutral Hadrons"]
 
 # Open all files
 files = [ROOT.TFile.Open(val["file"]) for val in config]
 
 # Get the list of histograms in the first file (assuming all files have the same histograms)
-hist_names = [key.GetName() for key in files[0].GetListOfKeys() if key.GetClassName().startswith("TH1")]
+hist_names = [key.GetName() for key in files[0].GetListOfKeys() if key.GetClassName().startswith("TH1")][:9]
 # only look for pwflag hists for now and then do the event variables
 hist_names = [hist for hist in hist_names if "pwflag" in hist]
 print(hist_names)
@@ -81,16 +35,20 @@ ROOT.gROOT.SetBatch(True)
 
 # Loop over histogram names and plot each set of histograms
 for hist_name in hist_names:
+
     hist_list = [f.Get(hist_name) for f in files]
+    
+    # pick up pwflag
+    pwflag = int(hist_name.split("_")[2].strip("pwflag"))
 
     if not all(hist_list):  # Skip if any file is missing the histogram
         print(f"Warning: Missing histogram {hist_name} in some files.")
         continue
 
     # Create a new canvas for each histogram
-    canvas = ROOT.TCanvas(f"c_{hist_name}", hist_name, 50, 50, 600, 600)
-    # if hist_name in SetLogy:
-    # canvas.SetLogy()
+    canvas = ALEPHCanvas(hist_name)
+    if any([i in hist_name for i in SetLogy]):
+        canvas.SetLogy()
 
     # Set line colors
     colors = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen + 2, ROOT.kMagenta, ROOT.kOrange]
@@ -110,8 +68,12 @@ for hist_name in hist_names:
         hist.GetYaxis().SetTitleOffset(1.4)
         hist.GetXaxis().SetTitleOffset(1.4)
         hist.GetYaxis().SetMaxDigits(3)
-        
-        # h1->SetYTitle("d#sigma_{jet}/dE_{T,jet} [fb/GeV]");
+        # rebin and then set divisions
+        rebin_factor = 1 if hist.GetBinWidth(0) == 1 else 2
+        hist.Rebin(rebin_factor)
+        # nBins = hist.GetNbinsX()
+        # hist.GetXaxis().SetNdivisions(nBins, 1, 0)
+        # hist.GetXaxis().SetNdivisions(505)
 
         # create the y-axis title 
         XTitle = hist.GetXaxis().GetTitle()
@@ -162,7 +124,8 @@ for hist_name in hist_names:
 
     # Add "Archived ALEPH" text in upper-left corner
     ALEPHLabel(0.2, 0.87)
-    myText(0.2, 0.83, "#sqrt{s} = 91.2 GeV, X pb^{-1}", size=0.04)
+    myText(0.2, 0.83, "#sqrt{s} = 91.2 GeV, X pb^{-1}", size=0.035)
+    myText(0.2, 0.78, pwflags[pwflag] + f" (pwflag = {pwflag})", size=0.035)
 
     # Save to individual PDF
     pdf_name = f"{hist_name}.pdf"
