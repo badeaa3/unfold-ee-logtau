@@ -5,7 +5,7 @@ gROOT.LoadMacro("AtlasUtils.C")
 
 ROOT.SetAtlasStyle()
 
-def ALEPHLabel(x, y, text=None, color=ROOT.kBlack):
+def ALEPHLabel(x, y, text=None, color=ROOT.kBlack, size=0.055):
     """
     Draw an 'ATLAS' label on a ROOT canvas at position (x, y), with an optional text.
 
@@ -18,6 +18,7 @@ def ALEPHLabel(x, y, text=None, color=ROOT.kBlack):
     l.SetNDC()
     l.SetTextFont(72)  # Bold ATLAS font
     l.SetTextColor(color)
+    l.SetTextSize(size)
     
     # Compute delx using the gPad dimensions
     if ROOT.gPad:
@@ -36,6 +37,22 @@ def ALEPHLabel(x, y, text=None, color=ROOT.kBlack):
         p.SetTextColor(color)
         p.DrawLatex(x + delx, y, text)
 
+def myText(x, y, text, color=ROOT.kBlack, align=12, size=0.03):
+    """
+    Draws a text label on a ROOT canvas at position (x, y) in NDC coordinates.
+
+    Parameters:
+    - x, y: Position in NDC coordinates (0-1)
+    - color: ROOT color (e.g., ROOT.kBlack, ROOT.kRed)
+    - text: The text string to be displayed
+    """
+    l = ROOT.TLatex()
+    l.SetTextAlign(align)
+    l.SetTextSize(size) 
+    l.SetNDC()
+    l.SetTextColor(color)
+    l.DrawLatex(x, y, text)
+
 # config
 config = []
 config.append({
@@ -47,11 +64,17 @@ config.append({
     "legend" : "Pythia 6.1"
 })
 
+# list of names to set log
+SetLogy = []
+
 # Open all files
 files = [ROOT.TFile.Open(val["file"]) for val in config]
 
 # Get the list of histograms in the first file (assuming all files have the same histograms)
-hist_names = [key.GetName() for key in files[0].GetListOfKeys() if key.GetClassName().startswith("TH1")][:2]
+hist_names = [key.GetName() for key in files[0].GetListOfKeys() if key.GetClassName().startswith("TH1")]
+# only look for pwflag hists for now and then do the event variables
+hist_names = [hist for hist in hist_names if "pwflag" in hist]
+print(hist_names)
 
 # Run in batch mode to suppress UI popups
 ROOT.gROOT.SetBatch(True)
@@ -65,16 +88,18 @@ for hist_name in hist_names:
         continue
 
     # Create a new canvas for each histogram
-    canvas = ROOT.TCanvas(f"c_{hist_name}", hist_name, 800, 600)
+    canvas = ROOT.TCanvas(f"c_{hist_name}", hist_name, 50, 50, 600, 600)
+    # if hist_name in SetLogy:
+    # canvas.SetLogy()
 
     # Set line colors
     colors = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen + 2, ROOT.kMagenta, ROOT.kOrange]
     
     # legend
-    legend = ROOT.TLegend(0.7, 0.7, 0.9, 0.85)
+    legend = ROOT.TLegend(0.68, 0.8, 0.88, 0.9)
     legend.SetFillStyle(0)
     legend.SetBorderSize(0)
-    legend.SetTextSize(0.045)
+    legend.SetTextSize(0.04)
     
     # Normalize histograms if needed (optional)
     for i, hist in enumerate(hist_list):
@@ -82,6 +107,23 @@ for hist_name in hist_names:
         # general settings
         max_bin_content = 0
         hist.SetStats(0)  # Remove stats box
+        hist.GetYaxis().SetTitleOffset(1.4)
+        hist.GetXaxis().SetTitleOffset(1.4)
+        hist.GetYaxis().SetMaxDigits(3)
+        
+        # h1->SetYTitle("d#sigma_{jet}/dE_{T,jet} [fb/GeV]");
+
+        # create the y-axis title 
+        XTitle = hist.GetXaxis().GetTitle()
+        XBinWidth = hist.GetBinWidth(0)
+        temp = XTitle.split("[")
+        units = f" [pb/{XBinWidth}" + ("]" if len(temp) == 1 else " "+temp[1])
+        # what we are plotting reduces to the ytitle in terms of sigma
+        # 1/N dN/dX
+        # = 1/(sigma * L) d(sigma*L)/dX
+        # = 1/sigma d(sigma)/dX
+        YTitle = "1/#sigma d#sigma/d" + temp[0] + units
+        hist.SetYTitle(YTitle)
 
         # normalize
         if hist.Integral() > 0:
@@ -119,8 +161,8 @@ for hist_name in hist_names:
     legend.Draw()
 
     # Add "Archived ALEPH" text in upper-left corner
-    ALEPHLabel(0.2, 0.875); 
-    # ROOT.myText(0.34,0.8,1,"Preliminary");
+    ALEPHLabel(0.2, 0.87)
+    myText(0.2, 0.83, "#sqrt{s} = 91.2 GeV, X pb^{-1}", size=0.04)
 
     # Save to individual PDF
     pdf_name = f"{hist_name}.pdf"
