@@ -76,6 +76,14 @@ def aleph_style_settings():
 def ALEPHCanvas(name):
     return ROOT.TCanvas(f"c_{name}", name, 50, 50, 600, 600)
 
+def ALEPHLegend():
+    legend = ROOT.TLegend(0.68, 0.8, 0.88, 0.9)
+    legend.SetFillStyle(0)
+    legend.SetBorderSize(0)
+    legend.SetTextSize(0.04)
+    return legend 
+
+
 def ALEPHLabel(x, y, text=None, color=ROOT.kBlack, size=0.055):
     """
     Draw an 'ALEPH' label on a ROOT canvas at position (x, y), with an optional text.

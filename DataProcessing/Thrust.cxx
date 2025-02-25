@@ -287,31 +287,31 @@ int main(int argc, char* argv[]) {
     // create object level histograms for each pwflag
     std::map<std::pair<int, std::string>, TH1D*> particleHists;
     for(int iP=0; iP <= 5; iP++){
-      particleHists[{iP, "cosTheta"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "cosTheta").c_str(), ";cos(#theta);Entries", 100, -1, 1);
-      particleHists[{iP, "phi"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "phi").c_str(), ";#phi;Entries", 100, -4, 4);
-      particleHists[{iP, "pt"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pt").c_str(), ";p_{T} [GeV];Entries", 100, 0, 20);
-      particleHists[{iP, "ntpc"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "ntpc").c_str(), ";NTPC;Entries", 31, -0.5, 30.5);
-      particleHists[{iP, "d0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "d0").c_str(), ";d_{0} [cm];Entries", 120, -3, 3);
-      particleHists[{iP, "z0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "z0").c_str(), ";z_{0} [cm];Entries", 100, -20, 20);
-      particleHists[{iP, "pmag"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pmag").c_str(), ";|#vec{p}| [GeV];Entries", 60, 0, 30);
-      particleHists[{iP, "mass"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "mass").c_str(), ";Mass [GeV];Entries", 100, 0, 20);
-      particleHists[{iP, "energy"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "energy").c_str(), ";Energy [GeV];Entries", 100, 0, 20);
+      particleHists[{iP, "cosTheta"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "cosTheta").c_str(), ";cos#theta;Entries", 200, -1, 1);
+      particleHists[{iP, "phi"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "phi").c_str(), ";#phi;Entries", 800, -4, 4);
+      particleHists[{iP, "pt"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pt").c_str(), ";p_{T} [GeV];Entries", 100, 0, 100);
+      particleHists[{iP, "ntpc"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "ntpc").c_str(), ";N_{TPC};Entries", 31, -0.5, 30.5);
+      particleHists[{iP, "d0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "d0").c_str(), ";d_{0} [cm];Entries", 50, -2.5, 2.5);
+      particleHists[{iP, "z0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "z0").c_str(), ";z_{0} [cm];Entries", 300, -15, 15);
+      particleHists[{iP, "pmag"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pmag").c_str(), ";|#vec{p}| [GeV];Entries", 100, 0, 100);
+      particleHists[{iP, "mass"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "mass").c_str(), ";Mass [GeV];Entries", 100, 0, 10);
+      particleHists[{iP, "energy"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "energy").c_str(), ";Energy [GeV];Entries", 100, 0, 100);
     }
 
     // create event level histograms for each track selection variation
     std::map<std::pair<int, std::string>, TH1D*> eventHists;
     for (unsigned int iV = 0; iV < trackVariations.size(); iV++){
       if (genTree && iV > 0 ) break;
-      eventHists[{iV, "ntrk"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrk").c_str(), ";NTrk;Entries", 71, -0.5, 70.5);
-      eventHists[{iV, "nneu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "nneu").c_str(), ";NNeu;Entries", 31, -0.5, 30.5);
-      eventHists[{iV, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrkPlusNeu").c_str(), ";NTrk+NNeu;Entries", 101, -0.5, 100.5);
-      eventHists[{iV, "eTrk"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "eTrk").c_str(), ";E_{Trk} [GeV];Entries", 100, 0, 200);
-      eventHists[{iV, "cosThetaSph"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaSph").c_str(), ";cos(#theta_{sph});Entries", 100, -1, 1);
+      eventHists[{iV, "ntrk"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrk").c_str(), ";N_{Trk};Entries", 61, -0.5, 60.5);
+      eventHists[{iV, "nneu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "nneu").c_str(), ";N_{Neu};Entries", 51, -0.5, 50.5);
+      eventHists[{iV, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrkPlusNeu").c_str(), ";N_{Trk+Neu};Entries", 81, -0.5, 80.5);
+      eventHists[{iV, "eCh"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "eCh").c_str(), ";E_{Ch} [GeV];Entries", 200, 0, 200);
+      eventHists[{iV, "cosThetaSph"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaSph").c_str(), ";cos#theta_{Sph};Entries", 100, -1, 1);
       eventHists[{iV, "sphericity"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
-      eventHists[{iV, "thrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0, 1);
+      eventHists[{iV, "thrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0.5, 1);
       eventHists[{iV, "missP"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
-      eventHists[{iV, "evis"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "evis").c_str(), ";E_{Vis} [GeV];Entries", 100, 0, 200);
-      eventHists[{iV, "cosThetaThrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaThrust").c_str(), ";cos(#theta_{Thrust});Entries", 100, -1, 1);
+      eventHists[{iV, "evis"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "evis").c_str(), ";E_{Vis} [GeV];Entries", 200, 0, 200);
+      eventHists[{iV, "cosThetaThrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaThrust").c_str(), ";cos#theta_{Thr};Entries", 100, -1, 1);
     }
 
     
@@ -495,7 +495,7 @@ int main(int argc, char* argv[]) {
 	eventHists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
 	eventHists[{iV, "nneu"}]->Fill(Neu.at(iV));
 	eventHists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
-	eventHists[{iV, "eTrk"}]->Fill(TotalTrkEnergy.at(iV));
+	eventHists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
 	eventHists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
 	eventHists[{iV, "sphericity"}]->Fill(Sph.at(iV));
 	eventHists[{iV, "thrust"}]->Fill(Thrust.at(iV));
