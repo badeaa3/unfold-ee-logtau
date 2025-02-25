@@ -108,7 +108,7 @@ for hist_name in hist_names:
     firstspace = 0.03
     space = 0.04
     ALEPHLabel(0.2, pltConfig["ALEPHTagTop"])
-    myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 0*space, "#sqrt{s} = 91.2 GeV, 44 pb ^{-1}", size=0.035)
+    myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 0*space, "#sqrt{s} = 91.2 GeV, 45 pb ^{-1}", size=0.035)
     if "pwflag" in hist_name:
         myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 1*space, pwflags[pwflag], size=0.035)
     elif "objSel" in hist_name:
