@@ -162,6 +162,7 @@ int main(int argc, char* argv[]) {
   bool d_ThrMissP = false; // include missing momentum vector in calculation
 
   // push back the selections
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, 0, 1, 0, 0, 0, d_ThrCh, d_ThrNeu, d_ThrMissP)); // no event selections
   selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // nominal
   selections.push_back(getSelection(7,      d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // ntpc 4 -> 7
   selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, 0.4,     d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // charged tracks pT 0.2 -> 0.4 GeV
@@ -485,28 +486,30 @@ int main(int argc, char* argv[]) {
 	      // TVector3 getThrust(int n, float *px, float *py, float *pz, THRUST::algorithm algo = THRUST::HERWIG, bool doWeight = false, bool doInvertWeight = false, float* weight = NULL, bool doMET = false, Short_t *pwflag = NULL)
         thrust = getThrust(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), THRUST::OPTIMAL);
         Thrust.push_back(thrust.Mag());
-	      TTheta.push_back(thrust.Theta());
+	TTheta.push_back(thrust.Theta());
 
         // compute event selection passes
-        passEventSelection.push_back(
-          passesNTupleAfterCut == 1
-          && (TotalTrkEnergy.at(iV) >= selections.at(iV)["TotalTrkEnergyCut"])
+	bool eventSelection =
+	  passesNTupleAfterCut == 1
+	  && (TotalTrkEnergy.at(iV) >= selections.at(iV)["TotalTrkEnergyCut"])
           && (TMath::Abs(TMath::Cos(STheta.at(iV))) <= selections.at(iV)["AbsCosSThetaCut"])
           && (NTrk.at(iV) >= selections.at(iV)["NTrkCut"])
-          && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"])
-        );
+          && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"]);
 
-        // fill histograms
-        hists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
-        hists[{iV, "nneu"}]->Fill(Neu.at(iV));
-        hists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
-        hists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
-        hists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
-        hists[{iV, "sphericity"}]->Fill(Sph.at(iV));
-        hists[{iV, "thrust"}]->Fill(Thrust.at(iV));
-        hists[{iV, "missP"}]->Fill(MissP.at(iV));
-        hists[{iV, "evis"}]->Fill(EVis.at(iV));
-        hists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
+	// append and fill histograms if selection passed
+	passEventSelection.push_back(eventSelection);
+	if(eventSelection){
+	  hists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
+	  hists[{iV, "nneu"}]->Fill(Neu.at(iV));
+	  hists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
+	  hists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
+	  hists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
+	  hists[{iV, "sphericity"}]->Fill(Sph.at(iV));
+	  hists[{iV, "thrust"}]->Fill(Thrust.at(iV));
+	  hists[{iV, "missP"}]->Fill(MissP.at(iV));
+	  hists[{iV, "evis"}]->Fill(EVis.at(iV));
+	  hists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
+	}
 
       }
 
