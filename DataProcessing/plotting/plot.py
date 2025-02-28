@@ -31,9 +31,9 @@ for hist_name in hist_names:
         pwflag = int(hist_name.split("_")[2].strip("pwflag"))
         outDir = f"pwflag{pwflag}"
         os.makedirs(outDir, exist_ok=True)
-    elif "objSel" in hist_name:
-        objSel = int(hist_name.split("_")[2].strip("objSel"))
-        outDir = f"objSel{objSel}"
+    elif "sel" in hist_name:
+        objSel = int(hist_name.split("_")[2].strip("sel"))
+        outDir = f"sel{objSel}"
         os.makedirs(outDir, exist_ok=True)
 
     # get list of hists

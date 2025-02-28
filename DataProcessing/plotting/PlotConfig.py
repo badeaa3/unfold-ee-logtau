@@ -3,7 +3,7 @@ import ROOT
 # config
 config = []
 config.append({
-    "file" : "../temp/LEP1Data1994_recons_aftercut-MERGED_thrust.root",
+    "file" : "../LEP1Data1994_recons_aftercut-MERGED_thrust.root",
     "legend" : "Data 1994",
     "color" : ROOT.kBlack,
     "DrawOption" : "PE",
@@ -12,7 +12,7 @@ config.append({
     "LegendDraw" : "p"
 })
 config.append({
-    "file" : "../temp/alephMCRecoAfterCutPaths_1994_thrust.root",
+    "file" : "../alephMCRecoAfterCutPaths_1994_thrust.root",
     "legend" : "Pythia 6.1",
     "DrawOption" : "HIST",
     "color" : ROOT.kRed,

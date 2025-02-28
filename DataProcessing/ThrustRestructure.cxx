@@ -315,19 +315,18 @@ int main(int argc, char* argv[]) {
     }
 
     // create event level histograms for each selection variation
-    // std::map<std::pair<int, std::string>, TH1D*> eventHists;
     for (unsigned int iV = 0; iV < selections.size(); iV++){
       if (genTree && iV > 0 ) break;
-      hists[{iV, "ntrk"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrk").c_str(), ";N_{Trk};Entries", 61, -0.5, 60.5);
-      hists[{iV, "nneu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "nneu").c_str(), ";N_{Neu};Entries", 51, -0.5, 50.5);
-      hists[{iV, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrkPlusNeu").c_str(), ";N_{Trk+Neu};Entries", 81, -0.5, 80.5);
-      hists[{iV, "eCh"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "eCh").c_str(), ";E_{Ch} [GeV];Entries", 200, 0, 200);
-      hists[{iV, "cosThetaSph"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaSph").c_str(), ";cos#theta_{Sph};Entries", 100, -1, 1);
-      hists[{iV, "sphericity"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
-      hists[{iV, "thrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0.5, 1);
-      hists[{iV, "missP"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
-      hists[{iV, "evis"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "evis").c_str(), ";E_{Vis} [GeV];Entries", 200, 0, 200);
-      hists[{iV, "cosThetaThrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaThrust").c_str(), ";cos#theta_{Thr};Entries", 100, -1, 1);
+      hists[{iV, "ntrk"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "ntrk").c_str(), ";N_{Trk};Entries", 61, -0.5, 60.5);
+      hists[{iV, "nneu"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "nneu").c_str(), ";N_{Neu};Entries", 51, -0.5, 50.5);
+      hists[{iV, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "ntrkPlusNeu").c_str(), ";N_{Trk+Neu};Entries", 81, -0.5, 80.5);
+      hists[{iV, "eCh"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "eCh").c_str(), ";E_{Ch} [GeV];Entries", 200, 0, 200);
+      hists[{iV, "cosThetaSph"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "cosThetaSph").c_str(), ";cos#theta_{Sph};Entries", 100, -1, 1);
+      hists[{iV, "sphericity"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
+      hists[{iV, "thrust"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0.5, 1);
+      hists[{iV, "missP"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
+      hists[{iV, "evis"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "evis").c_str(), ";E_{Vis} [GeV];Entries", 200, 0, 200);
+      hists[{iV, "cosThetaThrust"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "cosThetaThrust").c_str(), ";cos#theta_{Thr};Entries", 100, -1, 1);
     }
 
     // interpret divide and thisdiv to event range
@@ -345,6 +344,7 @@ int main(int argc, char* argv[]) {
     std::cout << TString::Format("Total events %d, Events per division %d, Start event %d, End event %d, Analysing %d events", nEvents, evtperdiv, startevt, endevt, ntotal) << std::endl;
     // start clock
     time_start = std::chrono::system_clock::now();
+    
     for (int iE = startevt; iE < endevt; iE++) {
 
       // progressbar
@@ -418,10 +418,10 @@ int main(int argc, char* argv[]) {
             && (TMath::Abs(d0[iP]) <= selections.at(iV)["d0Cut"])
             && (TMath::Abs(z0[iP]) <= selections.at(iV)["z0Cut"])
             && (ntpc[iP] >= selections.at(iV)["nTPCcut"]);
+          
+          // populate
           if (passChgTrkSel) {
-            if (debug){
-              std::cout << "Passed charged track selection" << std::endl;
-            }
+            if (debug) std::cout << "Passed charged track selection" << std::endl;
             // increment values
             TotalTrkEnergy.at(iV) += energy;
 	          EVis.at(iV) += energy;
@@ -437,19 +437,19 @@ int main(int argc, char* argv[]) {
           }
 
           // neutral particle selection
-          bool passNeuPartSel =
+          bool passNeuPartSel = 
             (pwflag[iP] == 4 || pwflag[iP] == 5)
 	          && (energy >= selections.at(iV)["ECut"])
             && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["neutralTracksAbsCosThCut"]);
+          
+          // populate
           if (passNeuPartSel) {
-            if (debug){
-              std::cout << "Passed neutral track selection" << std::endl;
-            }
+            if (debug) std::cout << "Passed neutral track selection" << std::endl;
             // increment values
             EVis.at(iV) += energy;
             Neu.at(iV) += 1;
             // add to input list for sphericity and thrust
-            if(selections.at(iV)["keepChargedTracks"]){
+            if(selections.at(iV)["keepNeutralTracks"]){
               selectedParts.at(iV) += 1;
               selectedPx.at(iV).push_back(px[iP]);
               selectedPy.at(iV).push_back(py[iP]);
@@ -521,9 +521,6 @@ int main(int argc, char* argv[]) {
     for (auto &entry : hists) {
         entry.second->Write();
     }
-    // for (auto &entry : eventHists) {
-    //     entry.second->Write();
-    // }
     
     std::cout << "\n" << std::endl;
 
