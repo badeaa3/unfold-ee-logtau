@@ -21,25 +21,29 @@ Analysis: MITHIG-MOD-20-001 Omnifold applied to ALEPH data
 #include <iostream>
 #include <iomanip>
 
-
-// track selection variation
-std::map<std::string, float> getTrackVariation(
-  /* charged track selections */
-  int applySelection, // flag indicating if the selection should be applied to thrust and sphericity calculation
-  int nTPCcut, // 2PC paper value: 4
-  float chargedTracksAbsCosThCut, // 0.94
-  float ptCut, // 0.2
-  float d0Cut, // 2
-  float z0Cut, // 10
-  /* neutral track selections */
-  float ECut, // 0.4
-  float neutralTracksAbsCosThCut, // 0.98
-  bool keepChargedTracks, // include charged tracks in calculation
-  bool keepNeutralTracks,  // include neutral tracks in calculation
-  bool doMET // include missing momentum vector in calculation
-) {
+// default selection
+std::map<std::string, float> getSelection(
+ /* charged track selections */
+ int nTPCcut, // number of hits in the TPC
+ float chargedTracksAbsCosThCut, // cosine of polar angle for charged tracks
+ float ptCut, // transverse momentum of charged tracks [GeV]
+ float d0Cut, // transverse impact parameter of charged tracks [cm]
+ float z0Cut, // lonitudinal impact parameter of charged tracks [cm]
+ /* neutral particle selections */
+ float ECut, // energy of neutral ECAL/HCAL objects [GeV]
+ float neutralTracksAbsCosThCut, // cosine of polar angle for neutral objects
+ /* event selections */
+ float TotalTrkEnergyCut, // total charged energy [GeV]
+ float AbsCosSThetaCut, // cosine of polar angle of sphericity axis 
+ float NTrkCut, // number of charged tracks
+ float NeuNchCut, // number of charged and neutral particles
+ float EVisCut, // total visible energy [GeV]
+ /* thrust variations */
+ bool keepChargedTracks, // include charged tracks in calculation
+ bool keepNeutralTracks,  // include neutral tracks in calculation
+ bool doMET // include missing momentum vector in calculation
+ ) {
   return std::map<std::string, float> {
-    {"applyTrackSelection", applySelection},
     {"nTPCcut", nTPCcut},
     {"chargedTracksAbsCosThCut", chargedTracksAbsCosThCut},
     {"ptCut", ptCut},
@@ -47,25 +51,14 @@ std::map<std::string, float> getTrackVariation(
     {"z0Cut", z0Cut},
     {"ECut", ECut},
     {"neutralTracksAbsCosThCut", neutralTracksAbsCosThCut},
-    {"keepChargedTracks", keepChargedTracks},
-    {"keepNeutralTracks", keepNeutralTracks},
-    {"doMET", doMET},
-  };
-}
-
-// event selection variation
-std::map<std::string, float> getEventVariation(
-  /* event selections */
-  float TotalTrkEnergyCut, // 2PC paper value: 15
-  float AbsCosSThetaCut, // 0.82
-  float NTrkCut, // 5
-  float NeuNchCut // 13
-) {
-  return std::map<std::string, float> {
     {"TotalTrkEnergyCut", TotalTrkEnergyCut},
     {"AbsCosSThetaCut", AbsCosSThetaCut},
     {"NTrkCut", NTrkCut},
-    {"NeuNchCut", NeuNchCut}
+    {"NeuNchCut", NeuNchCut},
+    {"EVisCut", EVisCut},
+    {"keepChargedTracks", keepChargedTracks},
+    {"keepNeutralTracks", keepNeutralTracks},
+    {"doMET", doMET},
   };
 }
 
@@ -145,93 +138,121 @@ int main(int argc, char* argv[]) {
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Output File %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::unique_ptr<TFile> fout (new TFile(outFileName.c_str(), "RECREATE"));
 
-  // #%%%%%%%%%%%%%%%%%%%%%%%%%% Track Variations %%%%%%%%%%%%%%%%%%%%%%%%%%#
-  std::vector<std::map<std::string, float> > trackVariations; // vector of variations
-  // trackVariations.push_back(getTrackVariation(0, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // no track selection
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // 2PC track selection
-  trackVariations.push_back(getTrackVariation(1, 7, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // ntpc varied from 4 -> 7
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.4, 2, 10, 0.4, 0.98, true, true, false)); // charged tracks pT cut from 0.2 to 0.4 GeV
-  // trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.2, 0.98, true, true, false)); // neutral ECut variation scaling down by 1/2
-  // trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.8, 0.98, true, true, false)); // neutral ECut variation scaling up by 2
-  // trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.96, true, true, false)); // neutralTracksAbsCosThCut subtracting 0.02
-  // trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 1.00, true, true, false)); // neutralTracksAbsCosThCut adding 0.02
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, false, false)); // charged tracks only thrust
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, false, true, false)); // neutral tracks only thrust
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, true)); // include met in thrust
+  // #%%%%%%%%%%%%%%%%%%%%%%%%%% Selection Variations %%%%%%%%%%%%%%%%%%%%%%%%%%#
+  std::vector<std::map<std::string, float> > selections; // vector of variations
 
+  // default/nominal values
+  int d_nTPC = 4;
+  float d_AbsCosThetaChg = 0.94;
+  float d_ptChg = 0.2; // GeV 
+  float d_d0 = 2; // cm
+  float d_z0 = 10; // cm
+  /* neutral track selections */
+  float d_ENeu = 0.4; // GeV
+  float d_AbsCosThetaNeu = 0.98;
+  /* event selections */
+  float d_Ech = 15; // GeV 
+  float d_AbsCosSTheta = 0.82;
+  float d_NTrk = 5;
+  float d_NTrkPlusNeu = 13;
+  float d_EVis = 0; // GeV
+  /* thrust variations */
+  bool d_ThrCh = true; // include charged tracks in calculation
+  bool d_ThrNeu = true;  // include neutral tracks in calculation
+  bool d_ThrMissP = false; // include missing momentum vector in calculation
+
+  // push back the selections
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // nominal
+  selections.push_back(getSelection(7,      d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // ntpc 4 -> 7
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, 0.4,     d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // charged tracks pT 0.2 -> 0.4 GeV
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, 10,    d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // total charged energy 15 -> 10 GeV
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, false,    d_ThrMissP)); // thrust without neutral objects
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, true));       // thrust with missing momentum vector as object
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, 91.2/2, d_ThrCh, d_ThrNeu, d_ThrMissP)); // visible energy selection 0 -> 0.5*Ecm GeV
+  
   // vectors for selected objects
   std::vector<int> selectedParts;
   std::vector<std::vector<float> > selectedPx, selectedPy, selectedPz;
   std::vector<std::vector<Short_t> > selectedPwflag;
+  
   // event level quantities
   TVector3 thrust;
   std::unique_ptr<Sphericity> spher;
 
   // save variation definitions to a tree
-  std::unique_ptr<TTree> varDefs (new TTree("TrackVariationDefinitions", ""));
-  int nTPCcut;
-  float applyTrackSelection, chargedTracksAbsCosThCut, ptCut, d0Cut, z0Cut, ECut, neutralTracksAbsCosThCut;
-  bool keepChargedTracks, keepNeutralTracks;
-  varDefs->Branch("applyTrackSelection", &applyTrackSelection);
-  varDefs->Branch("nTPCcut", &nTPCcut);
-  varDefs->Branch("chargedTracksAbsCosThCut", &chargedTracksAbsCosThCut);
-  varDefs->Branch("ptCut", &ptCut);
-  varDefs->Branch("d0Cut", &d0Cut);
-  varDefs->Branch("z0Cut", &z0Cut);
-  varDefs->Branch("ECut", &ECut);
-  varDefs->Branch("neutralTracksAbsCosThCut", &neutralTracksAbsCosThCut);
-  varDefs->Branch("keepChargedTracks", &keepChargedTracks);
-  varDefs->Branch("keepNeutralTracks", &keepNeutralTracks);
-
+  std::unique_ptr<TTree> varDefs (new TTree("Selections", ""));
+  
+  // selection variables
+  int s_nTPC;
+  float s_AbsCosThetaChg;
+  float s_ptChg;
+  float s_d0;
+  float s_z0;
+  /* neutral track selections */
+  float s_ENeu;
+  float s_AbsCosThetaNeu;
+  /* event selections */
+  float s_Ech;
+  float s_AbsCosSTheta;
+  float s_NTrk;
+  float s_NTrkPlusNeu;
+  float s_EVis;
+  /* thrust variations */
+  bool s_ThrCh;
+  bool s_ThrNeu;
+  bool s_ThrMissP;
+  
+  // set branches
+  varDefs->Branch("nTPC", &s_nTPC);
+  varDefs->Branch("AbsCosThetaChg", &s_AbsCosThetaChg);
+  varDefs->Branch("ptChg", &s_ptChg);
+  varDefs->Branch("d0", &s_d0);
+  varDefs->Branch("z0", &s_z0);
+  varDefs->Branch("ENeu", &s_ENeu);
+  varDefs->Branch("AbsCosThetaNeu", &s_AbsCosThetaNeu);
+  varDefs->Branch("Ech", &s_Ech);
+  varDefs->Branch("AbsCosSTheta", &s_AbsCosSTheta);
+  varDefs->Branch("NTrk", &s_NTrk);
+  varDefs->Branch("NTrkPlusNeu", &s_NTrkPlusNeu);
+  varDefs->Branch("EVis", &s_EVis);
+  varDefs->Branch("ThrCh", &s_ThrCh);
+  varDefs->Branch("ThrNeu", &s_ThrNeu);
+  varDefs->Branch("ThrMissP", &s_ThrMissP);
+  
   // push back for each variation and save to tree
-  for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
+  for (unsigned int iV = 0; iV < selections.size(); iV++) {
+
+    // push back holders for selected particles to perform calculations
     selectedParts.push_back(0);
     selectedPx.push_back(std::vector<float>());
     selectedPy.push_back(std::vector<float>());
     selectedPz.push_back(std::vector<float>());
     selectedPwflag.push_back(std::vector<Short_t>());
-    applyTrackSelection = trackVariations.at(iV)["applyTrackSelection"];
-    nTPCcut = trackVariations.at(iV)["nTPCcut"];
-    chargedTracksAbsCosThCut = trackVariations.at(iV)["chargedTracksAbsCosThCut"];
-    ptCut = trackVariations.at(iV)["ptCut"];
-    d0Cut = trackVariations.at(iV)["d0Cut"];
-    z0Cut = trackVariations.at(iV)["z0Cut"];
-    ECut = trackVariations.at(iV)["ECut"];
-    neutralTracksAbsCosThCut = trackVariations.at(iV)["neutralTracksAbsCosThCut"];
-    keepChargedTracks = trackVariations.at(iV)["keepChargedTracks"];
-    keepNeutralTracks = trackVariations.at(iV)["keepNeutralTracks"];
+      
+    // write selections
+    s_nTPC = selections.at(iV)["nTPCcut"];
+    s_AbsCosThetaChg = selections.at(iV)["chargedTracksAbsCosThCut"];
+    s_ptChg = selections.at(iV)["ptCut"];
+    s_d0 = selections.at(iV)["d0Cut"];
+    s_z0 = selections.at(iV)["z0Cut"];
+    s_ENeu = selections.at(iV)["ECut"];
+    s_AbsCosThetaNeu = selections.at(iV)["neutralTracksAbsCosThCut"];
+    s_Ech = selections.at(iV)["TotalTrkEnergyCut"];
+    s_AbsCosSTheta = selections.at(iV)["AbsCosSThetaCut"];
+    s_NTrk = selections.at(iV)["NTrkCut"];
+    s_NTrkPlusNeu = selections.at(iV)["NeuNchCut"];
+    s_EVis = selections.at(iV)["EVisCut"];
+    s_ThrCh = selections.at(iV)["keepChargedTracks"];
+    s_ThrNeu = selections.at(iV)["keepNeutralTracks"];
+    s_ThrMissP = selections.at(iV)["doMET"];
+
+    // fill tree
     varDefs->Fill();
   }
+  // write tree
   varDefs->Write();
-
-  // #%%%%%%%%%%%%%%%%%%%%%%%%%% Event Variations %%%%%%%%%%%%%%%%%%%%%%%%%%#
-  std::vector<std::map<std::string, float> > eventVariations; // vector of variations
-  eventVariations.push_back(getEventVariation(15, 0.82, 5, 13)); // nominal selections
-  eventVariations.push_back(getEventVariation(10, 0.82, 5, 13)); // total charged energy varied from 15 -> 10 GeV
-
-  // save variation definitions to a tree
-  std::unique_ptr<TTree> evtVarDefs (new TTree("EventVariationDefinitions", ""));
-  float TotalTrkEnergyCut, AbsCosSThetaCut;
-  int NTrkCut, NeuNchCut;
-  evtVarDefs->Branch("TotalTrkEnergyCut", &TotalTrkEnergyCut);
-  evtVarDefs->Branch("AbsCosSThetaCut", &AbsCosSThetaCut);
-  evtVarDefs->Branch("NTrkCut", &NTrkCut);
-  evtVarDefs->Branch("NeuNchCut", &NeuNchCut);
-  for (unsigned int iEV = 0; iEV < eventVariations.size(); iEV++) {
-    TotalTrkEnergyCut = eventVariations.at(iEV)["TotalTrkEnergyCut"];
-    AbsCosSThetaCut = eventVariations.at(iEV)["AbsCosSThetaCut"];
-    NTrkCut = eventVariations.at(iEV)["NTrkCut"];
-    NeuNchCut = eventVariations.at(iEV)["NeuNchCut"];
-    evtVarDefs->Fill();
-  }
-  evtVarDefs->Write();
-
-  // #%%%%%%%%%%%%%%%%%%%%%%%%%% Data Tree %%%%%%%%%%%%%%%%%%%%%%%%%%#
-  // std::vector<float> Thrust, TotalTrkEnergy, STheta;
-  // std::vector<int> NTrk, Neu;
-  // std::vector<std::vector<bool> > passEventSelection(eventVariations.size()); // allocate memory here without push_back to avoid copying which confuses tree->Branch  
     
-  // #%%%%%%%%%%%%%%%%%%%%%%%%%% Event Loop %%%%%%%%%%%%%%%%%%%%%%%%%%#
+  // #%%%%%%%%%%%%%%%%%%%%%%%%%% Analysis Loop %%%%%%%%%%%%%%%%%%%%%%%%%%#
 
   // timekeeper
   std::chrono::time_point<std::chrono::system_clock> time_start;
@@ -266,7 +287,7 @@ int main(int argc, char* argv[]) {
     unsigned long long uniqueIDCopy; 
     std::vector<float> Thrust, TotalTrkEnergy, STheta, Sph, MissP, EVis, TTheta;
     std::vector<int> NTrk, Neu;
-    std::vector<std::vector<bool> > passEventSelection(eventVariations.size()); // allocate memory here without push_back to avoid copying which confuses tree->Branch
+    std::vector<bool> passEventSelection;
     tout->Branch("uniqueID", &uniqueIDCopy);
     tout->Branch("Thrust", &Thrust);
     tout->Branch("TotalTrkEnergy", &TotalTrkEnergy);
@@ -277,41 +298,37 @@ int main(int argc, char* argv[]) {
     tout->Branch("MissP", &MissP);
     tout->Branch("EVis", &EVis);
     tout->Branch("TTheta", &TTheta);
-    for (unsigned int iEV = 0; iEV < eventVariations.size(); iEV++) {
-      tout->Branch(("passEventSelection_" + std::to_string(iEV)).c_str(), &passEventSelection.at(iEV));
-    }
+    tout->Branch("passEventSelection", &passEventSelection);
 
     // create object level histograms for each pwflag
-    std::map<std::pair<int, std::string>, TH1D*> particleHists;
+    std::map<std::pair<int, std::string>, TH1D*> hists;
     for(int iP=0; iP <= 5; iP++){
-      particleHists[{iP, "cosTheta"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "cosTheta").c_str(), ";cos#theta;Entries", 200, -1, 1);
-      particleHists[{iP, "phi"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "phi").c_str(), ";#phi;Entries", 800, -4, 4);
-      particleHists[{iP, "pt"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pt").c_str(), ";p_{T} [GeV];Entries", 100, 0, 100);
-      particleHists[{iP, "ntpc"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "ntpc").c_str(), ";N_{TPC};Entries", 31, -0.5, 30.5);
-      particleHists[{iP, "d0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "d0").c_str(), ";d_{0} [cm];Entries", 50, -2.5, 2.5);
-      particleHists[{iP, "z0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "z0").c_str(), ";z_{0} [cm];Entries", 300, -15, 15);
-      particleHists[{iP, "pmag"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pmag").c_str(), ";|#vec{p}| [GeV];Entries", 100, 0, 100);
-      particleHists[{iP, "mass"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "mass").c_str(), ";Mass [GeV];Entries", 100, 0, 10);
-      particleHists[{iP, "energy"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "energy").c_str(), ";Energy [GeV];Entries", 100, 0, 100);
+      hists[{iP, "cosTheta"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "cosTheta").c_str(), ";cos#theta;Entries", 200, -1, 1);
+      hists[{iP, "phi"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "phi").c_str(), ";#phi;Entries", 800, -4, 4);
+      hists[{iP, "pt"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pt").c_str(), ";p_{T} [GeV];Entries", 100, 0, 100);
+      hists[{iP, "ntpc"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "ntpc").c_str(), ";N_{TPC};Entries", 31, -0.5, 30.5);
+      hists[{iP, "d0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "d0").c_str(), ";d_{0} [cm];Entries", 50, -2.5, 2.5);
+      hists[{iP, "z0"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "z0").c_str(), ";z_{0} [cm];Entries", 300, -15, 15);
+      hists[{iP, "pmag"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "pmag").c_str(), ";|#vec{p}| [GeV];Entries", 100, 0, 100);
+      hists[{iP, "mass"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "mass").c_str(), ";Mass [GeV];Entries", 100, 0, 10);
+      hists[{iP, "energy"}] = new TH1D( (tree + "_hist_pwflag" + std::to_string(iP) + "_" + "energy").c_str(), ";Energy [GeV];Entries", 100, 0, 100);
     }
 
-    // create event level histograms for each track selection variation
-    std::map<std::pair<int, std::string>, TH1D*> eventHists;
-    for (unsigned int iV = 0; iV < trackVariations.size(); iV++){
+    // create event level histograms for each selection variation
+    for (unsigned int iV = 0; iV < selections.size(); iV++){
       if (genTree && iV > 0 ) break;
-      eventHists[{iV, "ntrk"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrk").c_str(), ";N_{Trk};Entries", 61, -0.5, 60.5);
-      eventHists[{iV, "nneu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "nneu").c_str(), ";N_{Neu};Entries", 51, -0.5, 50.5);
-      eventHists[{iV, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "ntrkPlusNeu").c_str(), ";N_{Trk+Neu};Entries", 81, -0.5, 80.5);
-      eventHists[{iV, "eCh"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "eCh").c_str(), ";E_{Ch} [GeV];Entries", 200, 0, 200);
-      eventHists[{iV, "cosThetaSph"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaSph").c_str(), ";cos#theta_{Sph};Entries", 100, -1, 1);
-      eventHists[{iV, "sphericity"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
-      eventHists[{iV, "thrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0.5, 1);
-      eventHists[{iV, "missP"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
-      eventHists[{iV, "evis"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "evis").c_str(), ";E_{Vis} [GeV];Entries", 200, 0, 200);
-      eventHists[{iV, "cosThetaThrust"}] = new TH1D( (tree + "_hist_objSel" + std::to_string(iV) + "_" + "cosThetaThrust").c_str(), ";cos#theta_{Thr};Entries", 100, -1, 1);
+      hists[{iV, "ntrk"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "ntrk").c_str(), ";N_{Trk};Entries", 61, -0.5, 60.5);
+      hists[{iV, "nneu"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "nneu").c_str(), ";N_{Neu};Entries", 51, -0.5, 50.5);
+      hists[{iV, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "ntrkPlusNeu").c_str(), ";N_{Trk+Neu};Entries", 81, -0.5, 80.5);
+      hists[{iV, "eCh"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "eCh").c_str(), ";E_{Ch} [GeV];Entries", 200, 0, 200);
+      hists[{iV, "cosThetaSph"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "cosThetaSph").c_str(), ";cos#theta_{Sph};Entries", 100, -1, 1);
+      hists[{iV, "sphericity"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
+      hists[{iV, "thrust"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0.5, 1);
+      hists[{iV, "missP"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
+      hists[{iV, "evis"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "evis").c_str(), ";E_{Vis} [GeV];Entries", 200, 0, 200);
+      hists[{iV, "cosThetaThrust"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "cosThetaThrust").c_str(), ";cos#theta_{Thr};Entries", 100, -1, 1);
     }
 
-    
     // interpret divide and thisdiv to event range
     int nEvents = t->GetEntries();
     int evtperdiv = nEvents / divide;
@@ -327,6 +344,7 @@ int main(int argc, char* argv[]) {
     std::cout << TString::Format("Total events %d, Events per division %d, Start event %d, End event %d, Analysing %d events", nEvents, evtperdiv, startevt, endevt, ntotal) << std::endl;
     // start clock
     time_start = std::chrono::system_clock::now();
+    
     for (int iE = startevt; iE < endevt; iE++) {
 
       // progressbar
@@ -351,7 +369,8 @@ int main(int argc, char* argv[]) {
       EVis.clear();
       Thrust.clear();
       TTheta.clear();
-      for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
+      passEventSelection.clear();
+      for (unsigned int iV = 0; iV < selections.size(); iV++) {
         if (genTree && iV > 0 ) break;
         selectedParts.at(iV) = 0;
         selectedPx.at(iV).clear();
@@ -359,149 +378,139 @@ int main(int argc, char* argv[]) {
         selectedPz.at(iV).clear();
         selectedPwflag.at(iV).clear();
         TotalTrkEnergy.push_back(0);
-	EVis.push_back(0);
+        EVis.push_back(0);
         NTrk.push_back(0);
         Neu.push_back(0);
       }
-      for (auto &ev : passEventSelection) ev.clear();
-
-      // compute event selection variables
-      for (int iP = 0; iP < nParticle; iP++) {
-
-        if (debug) std::cout << TString::Format("iP %d, pwflag %d, theta %f, pt %f, d0 %f, z0 %f, ntpc %d", iP, pwflag[iP], theta[iP], pt[iP], d0[iP], z0[iP], ntpc[iP]) << std::endl;
-
-	// compute the particle energy
-	float energy = TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
-	
-	// fill histogram for all particles
-	if(pwflag[iP] >= 0 && pwflag[iP] <= 5){
-	  particleHists[{pwflag[iP], "cosTheta"}]->Fill(cos(theta[iP]));
-	  particleHists[{pwflag[iP], "phi"}]->Fill(phi[iP]);
-	  particleHists[{pwflag[iP], "pt"}]->Fill(pt[iP]);
-	  particleHists[{pwflag[iP], "ntpc"}]->Fill(ntpc[iP]);
-	  particleHists[{pwflag[iP], "d0"}]->Fill(d0[iP]);
-	  particleHists[{pwflag[iP], "z0"}]->Fill(z0[iP]);
-	  particleHists[{pwflag[iP], "pmag"}]->Fill(pmag[iP]);
-	  particleHists[{pwflag[iP], "mass"}]->Fill(mass[iP]);
-	  particleHists[{pwflag[iP], "energy"}]->Fill(energy);
-	}
-	  
-        // loop over variations
-        for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
-
-          // if tgen or tgenbefore only do the first nominal variation
-          if (genTree && iV > 0 ) break;
-	  	  
-          // count charged tracks
-          bool chargedTrackSelections =
-            (pwflag[iP] >= 0 && pwflag[iP] <= 2)
-            && TMath::Abs(cos(theta[iP])) <= trackVariations.at(iV)["chargedTracksAbsCosThCut"]
-            && pt[iP] >= trackVariations.at(iV)["ptCut"]
-            && TMath::Abs(d0[iP]) <= trackVariations.at(iV)["d0Cut"]
-            && TMath::Abs(z0[iP]) <= trackVariations.at(iV)["z0Cut"]
-            && ntpc[iP] >= trackVariations.at(iV)["nTPCcut"];
-          // count charged tracks
-          if (chargedTrackSelections) {
-            TotalTrkEnergy.at(iV) += energy;
-	    EVis.at(iV) += energy;
-            NTrk.at(iV) += 1;
-            if (debug) std::cout << "Passed charged track selection" << std::endl;
-          }
-
-          // count neutral tracks
-          bool neutralTrackSelections =
-            (pwflag[iP] == 4 || pwflag[iP] == 5)
-	    && energy >= trackVariations.at(iV)["ECut"]
-            && TMath::Abs(cos(theta[iP])) <= trackVariations.at(iV)["neutralTracksAbsCosThCut"];
-          if (neutralTrackSelections) {
-	    EVis.at(iV) += energy;
-            Neu.at(iV) += 1;
-            if (debug) std::cout << "Passed neutral track selection" << std::endl;
-          }
-
-          // add to input list for thrust. check for -1 which indicates use all tracks for thrust
-          bool keeptrack = tree == "tgen" || tree == "tgenBefore"; // generator level always keep
-          keeptrack = keeptrack || trackVariations.at(iV)["applyTrackSelection"] == 0 ; // track selection should not be applied
-	  // make choice if charged and neutral tracks are kept in thrust calculation and then verify their selection
-	  keeptrack = keeptrack || (trackVariations.at(iV)["keepChargedTracks"] && chargedTrackSelections);
-	  keeptrack = keeptrack	|| (trackVariations.at(iV)["keepNeutralTracks"] && neutralTrackSelections);
-	  // save the track 
-          if (keeptrack) {
-            selectedParts.at(iV) += 1;
-            selectedPx.at(iV).push_back(px[iP]);
-            selectedPy.at(iV).push_back(py[iP]);
-            selectedPz.at(iV).push_back(pz[iP]);
-            selectedPwflag.at(iV).push_back(pwflag[iP]);
-          }
-          else {
-            if (debug) std::cout << "Did not pass either charged or neutral track selection" << std::endl;
-          }
-        }
-      }
-      if (debug) std::cout << TString::Format("Nominal N Passing Charged Tracks %d, N Passing Neutral Tracks %d, and selected tracks %d", NTrk.at(0), Neu.at(0), selectedParts.at(0)) << std::endl;
-
-      // compute event level variables
-      for (unsigned int iV = 0; iV < trackVariations.size(); iV++) {
+      
+      // loop over selections
+      for (unsigned int iV = 0; iV < selections.size(); iV++) {
 
         // if tgen or tgenbefore only do the first nominal variation
         if (genTree && iV > 0 ) break;
 
-	// calculate the missing momentum vector
-	TVector3 met = TVector3(0, 0, 0);
-	for (int t = 0; t < selectedParts.at(iV); t++) {
-	  met += (TVector3(selectedPx.at(iV).at(t), selectedPy.at(iV).at(t), selectedPz.at(iV).at(t)));
-	}
-	met = -met;
-	MissP.push_back(met.Mag());
-  
+        // loop over particles
+        for (int iP = 0; iP < nParticle; iP++) {
+
+          if (debug) std::cout << TString::Format("iP %d, pwflag %d, theta %f, pt %f, d0 %f, z0 %f, ntpc %d", iP, pwflag[iP], theta[iP], pt[iP], d0[iP], z0[iP], ntpc[iP]) << std::endl;
+
+          // compute the particle energy
+          float energy = TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
+    
+          // fill histogram for all particles on first pass
+          if(iV == 0 && pwflag[iP] >= 0 && pwflag[iP] <= 5){
+            hists[{pwflag[iP], "cosTheta"}]->Fill(cos(theta[iP]));
+            hists[{pwflag[iP], "phi"}]->Fill(phi[iP]);
+            hists[{pwflag[iP], "pt"}]->Fill(pt[iP]);
+            hists[{pwflag[iP], "ntpc"}]->Fill(ntpc[iP]);
+            hists[{pwflag[iP], "d0"}]->Fill(d0[iP]);
+            hists[{pwflag[iP], "z0"}]->Fill(z0[iP]);
+            hists[{pwflag[iP], "pmag"}]->Fill(pmag[iP]);
+            hists[{pwflag[iP], "mass"}]->Fill(mass[iP]);
+            hists[{pwflag[iP], "energy"}]->Fill(energy);
+          }
+
+          // charged track selection
+          bool passChgTrkSel =
+            (pwflag[iP] >= 0 && pwflag[iP] <= 2)
+            && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["chargedTracksAbsCosThCut"])
+            && (pt[iP] >= selections.at(iV)["ptCut"])
+            && (TMath::Abs(d0[iP]) <= selections.at(iV)["d0Cut"])
+            && (TMath::Abs(z0[iP]) <= selections.at(iV)["z0Cut"])
+            && (ntpc[iP] >= selections.at(iV)["nTPCcut"]);
+          
+          // populate
+          if (passChgTrkSel) {
+            if (debug) std::cout << "Passed charged track selection" << std::endl;
+            // increment values
+            TotalTrkEnergy.at(iV) += energy;
+	          EVis.at(iV) += energy;
+            NTrk.at(iV) += 1;
+            // add to input list for sphericity and thrust
+            if(selections.at(iV)["keepChargedTracks"]){
+              selectedParts.at(iV) += 1;
+              selectedPx.at(iV).push_back(px[iP]);
+              selectedPy.at(iV).push_back(py[iP]);
+              selectedPz.at(iV).push_back(pz[iP]);
+              selectedPwflag.at(iV).push_back(pwflag[iP]);
+            }
+          }
+
+          // neutral particle selection
+          bool passNeuPartSel = 
+            (pwflag[iP] == 4 || pwflag[iP] == 5)
+	          && (energy >= selections.at(iV)["ECut"])
+            && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["neutralTracksAbsCosThCut"]);
+          
+          // populate
+          if (passNeuPartSel) {
+            if (debug) std::cout << "Passed neutral track selection" << std::endl;
+            // increment values
+            EVis.at(iV) += energy;
+            Neu.at(iV) += 1;
+            // add to input list for sphericity and thrust
+            if(selections.at(iV)["keepNeutralTracks"]){
+              selectedParts.at(iV) += 1;
+              selectedPx.at(iV).push_back(px[iP]);
+              selectedPy.at(iV).push_back(py[iP]);
+              selectedPz.at(iV).push_back(pz[iP]);
+              selectedPwflag.at(iV).push_back(pwflag[iP]);
+            }
+          }
+        }
+
         // sphericity
         spher = std::make_unique<Sphericity>(Sphericity(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), selectedPwflag.at(iV).data(), false));
         STheta.push_back(spher->sphericityAxis().Theta());
-	Sph.push_back(spher->sphericity());
-      
-        // thrust
-	// TVector3 getThrust(int n, float *px, float *py, float *pz, THRUST::algorithm algo = THRUST::HERWIG, bool doWeight = false, bool doInvertWeight = false, float* weight = NULL, bool doMET = false, Short_t *pwflag = NULL)
-        thrust = getThrust(
-			   selectedParts.at(iV), // n
-			   selectedPx.at(iV).data(), // px
-			   selectedPy.at(iV).data(), // py
-			   selectedPz.at(iV).data(), // pz 
-			   THRUST::OPTIMAL, // THRUST::algorithm
-			   false, // doWeight
-			   false, // doInvertWeight
-			   NULL, // weight
-			   trackVariations.at(iV)["doMET"],  // doMET
-			   NULL // pwflag
-			   );
-        Thrust.push_back(thrust.Mag());
-	TTheta.push_back(thrust.Theta());
-	
-        // compute event selection passes
-        for (unsigned int iEV = 0; iEV < eventVariations.size(); iEV++) {
-          passEventSelection.at(iEV).push_back(
-            passesNTupleAfterCut == 1
-            && TotalTrkEnergy.at(iV) >= eventVariations.at(iEV)["TotalTrkEnergyCut"]
-            && TMath::Abs(TMath::Cos(STheta.at(iV))) <= eventVariations.at(iEV)["AbsCosSThetaCut"]
-            && NTrk.at(iV) >= eventVariations.at(iEV)["NTrkCut"]
-            && (NTrk.at(iV) + Neu.at(iV)) >= eventVariations.at(iEV)["NeuNchCut"]
-          );
+	      Sph.push_back(spher->sphericity());
+
+        // calculate the missing momentum vector
+	      TVector3 met = TVector3(0, 0, 0);
+	      for (int t = 0; t < selectedParts.at(iV); t++) {
+	        met += (TVector3(selectedPx.at(iV).at(t), selectedPy.at(iV).at(t), selectedPz.at(iV).at(t)));
+	      }
+	      met = -met;
+	      MissP.push_back(met.Mag());
+
+        // include missing momentum vector in thrust calculation
+        if (selections.at(iV)["doMET"]) {
+          selectedParts.at(iV) += 1;
+          selectedPx.at(iV).push_back(met.X()); // X() same as Px() for TVector3
+          selectedPy.at(iV).push_back(met.Y()); // Y() same as Py() for TVector3
+          selectedPz.at(iV).push_back(met.Z()); // Z() same as Pz() for TVector3
+          selectedPwflag.at(iV).push_back(-1); // not important for thrust but just to keep vectors the same length use -1 for missing momentum vector
         }
 
-	// fill histograms
-	eventHists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
-	eventHists[{iV, "nneu"}]->Fill(Neu.at(iV));
-	eventHists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
-	eventHists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
-	eventHists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
-	eventHists[{iV, "sphericity"}]->Fill(Sph.at(iV));
-	eventHists[{iV, "thrust"}]->Fill(Thrust.at(iV));
-	eventHists[{iV, "missP"}]->Fill(MissP.at(iV));
-	eventHists[{iV, "evis"}]->Fill(EVis.at(iV));
-	eventHists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
-	
-      }
-      if (debug) std::cout << TString::Format("Nominal STheta %f, Thrust %f", STheta.at(0), Thrust.at(0)) << std::endl;
+        // thrust
+	      // TVector3 getThrust(int n, float *px, float *py, float *pz, THRUST::algorithm algo = THRUST::HERWIG, bool doWeight = false, bool doInvertWeight = false, float* weight = NULL, bool doMET = false, Short_t *pwflag = NULL)
+        thrust = getThrust(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), THRUST::OPTIMAL);
+        Thrust.push_back(thrust.Mag());
+	      TTheta.push_back(thrust.Theta());
 
+        // compute event selection passes
+        passEventSelection.push_back(
+          passesNTupleAfterCut == 1
+          && (TotalTrkEnergy.at(iV) >= selections.at(iV)["TotalTrkEnergyCut"])
+          && (TMath::Abs(TMath::Cos(STheta.at(iV))) <= selections.at(iV)["AbsCosSThetaCut"])
+          && (NTrk.at(iV) >= selections.at(iV)["NTrkCut"])
+          && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"])
+        );
+
+        // fill histograms
+        hists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
+        hists[{iV, "nneu"}]->Fill(Neu.at(iV));
+        hists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
+        hists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
+        hists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
+        hists[{iV, "sphericity"}]->Fill(Sph.at(iV));
+        hists[{iV, "thrust"}]->Fill(Thrust.at(iV));
+        hists[{iV, "missP"}]->Fill(MissP.at(iV));
+        hists[{iV, "evis"}]->Fill(EVis.at(iV));
+        hists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
+
+      }
+
+      // fill per event
       tout->Fill();
     }
 
@@ -509,14 +518,12 @@ int main(int argc, char* argv[]) {
     tout->Write();
 
     // write histograms
-    for (auto &entry : particleHists) {
-        entry.second->Write();
-    }
-    for (auto &entry : eventHists) {
+    for (auto &entry : hists) {
         entry.second->Write();
     }
     
     std::cout << "\n" << std::endl;
+
   }
 
   return 1;
