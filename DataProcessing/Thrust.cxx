@@ -147,15 +147,14 @@ int main(int argc, char* argv[]) {
 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Track Variations %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::vector<std::map<std::string, float> > trackVariations; // vector of variations
-  trackVariations.push_back(getTrackVariation(0, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // no track selection
+  // trackVariations.push_back(getTrackVariation(0, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // no track selection
   trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // 2PC track selection
-  for (int i = 5; i <= 7; i++){
-    trackVariations.push_back(getTrackVariation(1, i, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // 2PC ntpc variations
-  }
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.2, 0.98, true, true, false)); // neutral ECut variation scaling down by 1/2
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.8, 0.98, true, true, false)); // neutral ECut variation scaling up by 2
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.96, true, true, false)); // neutralTracksAbsCosThCut subtracting 0.02
-  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 1.00, true, true, false)); // neutralTracksAbsCosThCut adding 0.02
+  trackVariations.push_back(getTrackVariation(1, 7, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, false)); // ntpc varied from 4 -> 7
+  trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.4, 2, 10, 0.4, 0.98, true, true, false)); // charged tracks pT cut from 0.2 to 0.4 GeV
+  // trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.2, 0.98, true, true, false)); // neutral ECut variation scaling down by 1/2
+  // trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.8, 0.98, true, true, false)); // neutral ECut variation scaling up by 2
+  // trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.96, true, true, false)); // neutralTracksAbsCosThCut subtracting 0.02
+  // trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 1.00, true, true, false)); // neutralTracksAbsCosThCut adding 0.02
   trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, false, false)); // charged tracks only thrust
   trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, false, true, false)); // neutral tracks only thrust
   trackVariations.push_back(getTrackVariation(1, 4, 0.94, 0.2, 2, 10, 0.4, 0.98, true, true, true)); // include met in thrust
@@ -207,10 +206,8 @@ int main(int argc, char* argv[]) {
 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Event Variations %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::vector<std::map<std::string, float> > eventVariations; // vector of variations
-  // nominal values
-  eventVariations.push_back(getEventVariation(15, 0.82, 5, 13));
-  // total charged energy variation
-  eventVariations.push_back(getEventVariation(10, 0.82, 5, 13));
+  eventVariations.push_back(getEventVariation(15, 0.82, 5, 13)); // nominal selections
+  eventVariations.push_back(getEventVariation(10, 0.82, 5, 13)); // total charged energy varied from 15 -> 10 GeV
 
   // save variation definitions to a tree
   std::unique_ptr<TTree> evtVarDefs (new TTree("EventVariationDefinitions", ""));
@@ -405,7 +402,7 @@ int main(int argc, char* argv[]) {
             && ntpc[iP] >= trackVariations.at(iV)["nTPCcut"];
           // count charged tracks
           if (chargedTrackSelections) {
-            TotalTrkEnergy.at(iV) += energy; //TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
+            TotalTrkEnergy.at(iV) += energy;
 	    EVis.at(iV) += energy;
             NTrk.at(iV) += 1;
             if (debug) std::cout << "Passed charged track selection" << std::endl;
@@ -414,7 +411,6 @@ int main(int argc, char* argv[]) {
           // count neutral tracks
           bool neutralTrackSelections =
             (pwflag[iP] == 4 || pwflag[iP] == 5)
-            // && TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]) >= trackVariations.at(iV)["ECut"]
 	    && energy >= trackVariations.at(iV)["ECut"]
             && TMath::Abs(cos(theta[iP])) <= trackVariations.at(iV)["neutralTracksAbsCosThCut"];
           if (neutralTrackSelections) {
