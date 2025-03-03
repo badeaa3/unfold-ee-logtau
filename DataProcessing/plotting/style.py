@@ -84,7 +84,7 @@ def ALEPHLegend():
     return legend 
 
 
-def ALEPHLabel(x, y, text=None, color=ROOT.kBlack, size=0.055):
+def ALEPHLabel(x, y, text=None, color=ROOT.kBlack, size=0.055, align=12):
     """
     Draw an 'ALEPH' label on a ROOT canvas at position (x, y), with an optional text.
 
@@ -98,7 +98,8 @@ def ALEPHLabel(x, y, text=None, color=ROOT.kBlack, size=0.055):
     l.SetTextFont(72)  # Bold ALEPH font
     l.SetTextColor(color)
     l.SetTextSize(size)
-    
+    l.SetTextAlign(align)
+
     # Compute delx using the gPad dimensions
     if ROOT.gPad:
         delx = 0.115 * 696 * ROOT.gPad.GetWh() / (472 * ROOT.gPad.GetWw())

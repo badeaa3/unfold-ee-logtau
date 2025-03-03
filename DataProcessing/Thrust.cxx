@@ -494,7 +494,8 @@ int main(int argc, char* argv[]) {
 	  && (TotalTrkEnergy.at(iV) >= selections.at(iV)["TotalTrkEnergyCut"])
           && (TMath::Abs(TMath::Cos(STheta.at(iV))) <= selections.at(iV)["AbsCosSThetaCut"])
           && (NTrk.at(iV) >= selections.at(iV)["NTrkCut"])
-          && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"]);
+          && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"])
+          && (EVis.at(iV) >= selections.at(iV)["EVisCut"]);
 
 	// append and fill histograms if selection passed
 	passEventSelection.push_back(eventSelection);
