@@ -23,13 +23,6 @@ def ratio_hist(A, B):
     result.Divide(B)
     return result  # Return the new histogram
 
-# Open all files
-f = ROOT.TFile.Open(config[0]["file"]) # pick up the data
-
-# output directory
-outDir = "ThrustVariations"
-os.makedirs(outDir, exist_ok=True)
-
 # pick up the plot config
 pltConfig = plotConfig["thrust"]
 
@@ -45,59 +38,68 @@ comparisons = [
     [1, 7, "Variation = E_{Vis} #geq 0 #rightarrow 0.5E_{cm}"]
 ]
 
-# get hist plot config
-for i,j,description in comparisons:
+for iC, name in enumerate(["Data", "MC"]):
+    
+    # Open all files
+    f = ROOT.TFile.Open(config[iC]["file"]) # pick up the data
 
-    # Create a new canvas for each histogram
-    canvas = ALEPHCanvas(f"c_hist_sel{i}_{j}_thrust")
+    # output directory
+    outDir = f"ThrustVariations{name}"
+    os.makedirs(outDir, exist_ok=True)
 
-    # legend
-    # legend = ALEPHLegend()
+    # get hist plot config
+    for i,j,description in comparisons:
 
-    # pick up histograms
-    hist_i = f.Get(f"t_hist_sel{i}_thrust")
-    hist_j = f.Get(f"t_hist_sel{j}_thrust")
-    hist = ratio_hist(hist_j, hist_i) # returns hist_A/hist_B
-    hist.SetStats(0)  # Remove stats box
-    hist.GetYaxis().SetTitleOffset(1.6)
-    hist.GetXaxis().SetTitleOffset(1.2)
-    hist.GetYaxis().SetMaxDigits(3)
-    # rebin and then set divisions
-    hist.Rebin(pltConfig["rebin"])
-    hist.GetXaxis().SetNdivisions(pltConfig["Ndivisions"])
-    # set style
-    hist.SetLineColor(ROOT.kBlack)
-    hist.SetMarkerColor(ROOT.kBlack)
-    hist.SetMarkerStyle(20)
-    hist.SetMarkerSize(0.8)
-    hist.SetLineWidth(2)
-    hist.SetYTitle("Variation/Nominal") # (Nominal - Variation)/Nominal")
-    hist.GetYaxis().SetRangeUser(0.02, 1.98) # -2.8,2.8)
-    # hist.GetXaxis().SetRangeUser(0.5, 1.3)
-    hist.Draw()
+        # Create a new canvas for each histogram
+        canvas = ALEPHCanvas(f"c_hist_sel{i}_{j}_thrust")
 
-    # legend.AddEntry(hist, "Data 1994", "p")
-    # legend.Draw()
+        # legend
+        # legend = ALEPHLegend()
 
-    # Draw a dashed light gray horizontal line at y=1
-    line = ROOT.TLine(hist.GetXaxis().GetXmin(), 1, hist.GetXaxis().GetXmax(), 1)
-    line.SetLineColor(ROOT.kGray + 1)
-    line.SetLineStyle(2)  # Dashed line
-    line.SetLineWidth(3)
-    line.Draw()
+        # pick up histograms
+        hist_i = f.Get(f"t_hist_sel{i}_thrust")
+        hist_j = f.Get(f"t_hist_sel{j}_thrust")
+        hist = ratio_hist(hist_j, hist_i) # returns hist_A/hist_B
+        hist.SetStats(0)  # Remove stats box
+        hist.GetYaxis().SetTitleOffset(1.6)
+        hist.GetXaxis().SetTitleOffset(1.2)
+        hist.GetYaxis().SetMaxDigits(3)
+        # rebin and then set divisions
+        hist.Rebin(pltConfig["rebin"])
+        hist.GetXaxis().SetNdivisions(pltConfig["Ndivisions"])
+        # set style
+        hist.SetLineColor(config[iC]["color"])
+        hist.SetMarkerColor(config[iC]["color"])
+        hist.SetMarkerStyle(20)
+        hist.SetMarkerSize(0.8)
+        hist.SetLineWidth(2)
+        hist.SetYTitle("Variation/Nominal") # (Nominal - Variation)/Nominal")
+        hist.GetYaxis().SetRangeUser(0.02, 1.98) # -2.8,2.8)
+        # hist.GetXaxis().SetRangeUser(0.5, 1.3)
+        hist.Draw()
 
-    # set the ALEPH tag
-    firstspace = 0.045
-    space = 0.045
-    left = 0.9
-    ALEPHLabel(left, pltConfig["ALEPHTagTop"], align=31)
-    myText(left, pltConfig["ALEPHTagTop"] - firstspace - 0*space, "#sqrt{s} = 91.2 GeV, 45 pb ^{-1}", size=0.035, align=31)
-    myText(left, pltConfig["ALEPHTagTop"] - firstspace - 1*space, description, size=0.035, align=31)
+        # legend.AddEntry(hist, "Data 1994", "p")
+        # legend.Draw()
 
-    # Save to individual PDF
-    pdf_name = os.path.join(outDir, f"sel{i}_{j}_thrust.pdf")
-    canvas.Print(pdf_name)
-    print(f"Saved: {pdf_name}")
+        # Draw a dashed light gray horizontal line at y=1
+        line = ROOT.TLine(hist.GetXaxis().GetXmin(), 1, hist.GetXaxis().GetXmax(), 1)
+        line.SetLineColor(ROOT.kGray + 1)
+        line.SetLineStyle(2)  # Dashed line
+        line.SetLineWidth(3)
+        line.Draw()
 
-    # Cleanup
-    canvas.Close()
+        # set the ALEPH tag
+        firstspace = 0.045
+        space = 0.045
+        left = 0.9
+        ALEPHLabel(left, pltConfig["ALEPHTagTop"], align=31)
+        myText(left, pltConfig["ALEPHTagTop"] - firstspace - 0*space, "#sqrt{s} = 91.2 GeV, 45 pb ^{-1}", size=0.035, align=31)
+        myText(left, pltConfig["ALEPHTagTop"] - firstspace - 1*space, description, size=0.035, align=31)
+
+        # Save to individual PDF
+        pdf_name = os.path.join(outDir, f"sel{i}_{j}_thrust.pdf")
+        canvas.Print(pdf_name)
+        print(f"Saved: {pdf_name}")
+
+        # Cleanup
+        canvas.Close()
