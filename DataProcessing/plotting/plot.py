@@ -71,7 +71,7 @@ for hist_name in hist_names:
 
         # create the y-axis title 
         XTitle = hist.GetXaxis().GetTitle()
-        XBinWidth = hist.GetBinWidth(0)
+        XBinWidth = hist.GetBinWidth(1)
         temp = XTitle.split("[")
         # get the units
         units = "[pb/" 
@@ -87,7 +87,9 @@ for hist_name in hist_names:
 
         # normalize
         if hist.Integral() > 0:
-            hist.Scale(1.0 / hist.Integral())
+            hist.Sumw()
+            scale = XBinWidth * hist.hist.Integral()
+            hist.Scale(1.0 / scale)
 
         # save maximum
         max_bin_content = max(max_bin_content, hist.GetMaximum())

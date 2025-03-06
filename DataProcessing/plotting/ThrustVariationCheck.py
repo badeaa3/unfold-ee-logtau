@@ -35,10 +35,13 @@ comparisons = [
     [1, 4, "Variation = E_{Ch} #geq 15 #rightarrow 10 GeV"],
     [1, 5, "Variation = Thrust w/o Neutral Objects"],
     [1, 6, "Variation = Thrust w/ #vec{p}_{miss} as Object"],
-    [1, 7, "Variation = E_{Vis} #geq 0 #rightarrow 0.5E_{cm}"]
+    [1, 7, "Variation = E_{Vis} #geq 0 #rightarrow 0.5E_{cm}"],
+    [1, 8, "Variation = MissP < 20 GeV"],
+    [1, 9, "Variation = |#vec{p}_{miss}| < 20 GeV and Thrust w/#vec{p}_{miss}"],
+    [1, 10, "Variation = Neutral Object E #geq 0.4 #rightarrow 0.8 GeV"],
 ]
 
-for iC, name in enumerate(["Data", "MC"]):
+for iC, name in enumerate(["Data"]): # , "MC"
     
     # Open all files
     f = ROOT.TFile.Open(config[iC]["file"]) # pick up the data
@@ -49,7 +52,7 @@ for iC, name in enumerate(["Data", "MC"]):
 
     # get hist plot config
     for i,j,description in comparisons:
-
+        print(i,j, description)
         # Create a new canvas for each histogram
         canvas = ALEPHCanvas(f"c_hist_sel{i}_{j}_thrust")
 
@@ -59,6 +62,13 @@ for iC, name in enumerate(["Data", "MC"]):
         # pick up histograms
         hist_i = f.Get(f"t_hist_sel{i}_thrust")
         hist_j = f.Get(f"t_hist_sel{j}_thrust")
+        # sumw2
+        hist_i.Sumw2()
+        hist_j.Sumw2()
+        # normalize first
+        hist_i.Scale(1.0 / (hist_i.GetBinWidth(1) * hist_i.Integral()))
+        hist_j.Scale(1.0 / (hist_i.GetBinWidth(1) * hist_j.Integral()))
+        # get ratio
         hist = ratio_hist(hist_j, hist_i) # returns hist_A/hist_B
         hist.SetStats(0)  # Remove stats box
         hist.GetYaxis().SetTitleOffset(1.6)
