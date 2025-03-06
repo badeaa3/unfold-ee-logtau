@@ -73,12 +73,7 @@ def train(
     output_directory = Path(str(output_directory).replace("%j", job_id))    
     os.makedirs(output_directory, exist_ok=True)
     print(output_directory)
-    
-    # write conf to json in output directory for logging
-    # output_conf_name = Path(output_directory, "./conf.json").resolve()
-    # with open(output_conf_name, 'w') as file:
-    #   json.dump(conf, file, indent=4)  # indent=4 for pretty printing
-    
+        
     # load the aleph reconstructed data, reconstructed mc, and generator mc
     reco_data, reco_mc, gen_mc, pass_reco, pass_gen = dataloader.DataLoader(conf)
 
@@ -100,10 +95,10 @@ def train(
       gen = gen_mc,
       pass_gen = pass_gen,
       weight = weights_mc,
-      normalize=True,
+      normalize = True,
       bootstrap = True if conf["job_type"] == "BootstrapMC" else False
     )
-    
+
     # make weights directory
     # weights_folder = Path(output_directory, "./model_weights").resolve() "%08x" % random.randrange(16**8)
     weights_folder_id = "%08x" % random.randrange(16**8)
@@ -111,11 +106,17 @@ def train(
     weights_folder.mkdir()
     weights_folder = str(weights_folder)
 
+    # save the starting weights
+    outFileName = Path(weights_folder, f"starting_weights.h5").resolve()
+    with h5py.File(outFileName, 'w') as hf:
+      hf.create_dataset("weights_data", data=data.weight)
+      hf.create_dataset("weights_mc", data=mc.weight)
+      
     # write conf to json in output directory for logging
     output_conf_name = Path(weights_folder, "./conf.json").resolve()
     with open(output_conf_name, 'w') as file:
       json.dump(conf, file, indent=4)  # indent=4 for pretty printing
-      
+    
     # prepare networks
     ndim = reco_data.shape[1] # Number of features we are going to create = thrust
     model1 = omnifold.MLP(ndim)
@@ -124,7 +125,6 @@ def train(
     # prepare multifold
     mfold = omnifold.MultiFold(
       name = 'mfold_job{}'.format(job_id),
-      # name = 'mfold_job{}_trial{}'.format(job_id, itrial),
       model_reco = model1,
       model_gen = model2,
       data = data,
@@ -143,7 +143,7 @@ def train(
     mfold.Unfold()
     
     # get weights
-    omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2)
+    omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2, batch_size=1000)
     
     # save weights to h5 file
     outFileName = Path(weights_folder, f"omnifold_weights.h5").resolve()
@@ -201,15 +201,18 @@ if __name__ == "__main__":
     18*N trainings for systematic variations
     = 138*N
     '''
-    n_ensemble_per_omnifold = 4 # this will be scaled by 4 from the running 4 copies on each node
+    
+    n_training_per_node = 4 # number of trainings per node or per job launched
+    # n_ensemble_per_omnifold = n_training_per_node # this will be scaled by 4 from the running 4 copies on each node
     
     # list of configurations to launch
     confs = []
 
     # add configurations for track and event selection systematic variations
-    # UPDATE THIS BEFORE RUNNING TO JUST RUN THE SYSTEMATICS YOU WANT
+    total_n_systematics = 12 # closest to 10 which divides by 4
+    n_systematics = int(total_n_systematics / n_training_per_node)
     if args.run_systematics:
-      for iN in range(n_ensemble_per_omnifold):
+      for iN in range(n_systematics):
 
         # track selections defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L141-L150
         for TrackVariation in range(2, 9):
@@ -228,34 +231,34 @@ if __name__ == "__main__":
           confs.append(temp)
 
     # bootstrap mc
-    n_bootstraps_mc = 10
+    total_n_bootstraps_mc = 40
+    n_bootstraps_mc = int(total_n_bootstraps_mc / n_training_per_node)
     if args.run_bootstrap_mc:
-      for iN in range(n_ensemble_per_omnifold):
-        for strapn in range(n_bootstraps_mc):
-          temp = training_conf.copy()
-          temp["job_type"] = "BootstrapMC"
-          temp["i_ensemble_per_omnifold"] = iN
-          confs.append(temp)
+      for strapn in range(n_bootstraps_mc):
+        temp = training_conf.copy()
+        temp["job_type"] = "BootstrapMC"
+        temp["i_ensemble_per_omnifold"] = strapn
+        confs.append(temp)
 
     # bootstrap data
-    n_bootstraps_data = 10
+    total_n_bootstraps_data = 40
+    n_bootstraps_data = int(total_n_bootstraps_data / n_training_per_node)
     if args.run_bootstrap_data:
-      for iN in range(n_ensemble_per_omnifold):
-        for strapn in range(n_bootstraps_data):
-          temp = training_conf.copy()
-          temp["job_type"] = "BootstrapData"
-          temp["i_ensemble_per_omnifold"] = iN
-          confs.append(temp)
+      for strapn in range(n_bootstraps_data):
+        temp = training_conf.copy()
+        temp["job_type"] = "BootstrapData"
+        temp["i_ensemble_per_omnifold"] = strapn
+        confs.append(temp)
     
     # add configurations for ensembling
-    n_ensembles = 100
+    total_n_ensembles = 400
+    n_ensembles = int(total_n_ensembles / n_training_per_node)
     if args.run_ensembling:
-      for iN in range(n_ensemble_per_omnifold):
-        for i in range(n_ensembles):
-          temp = training_conf.copy()
-          temp["job_type"] = "Ensembling"
-          temp["i_ensemble_per_omnifold"] = iN
-          confs.append(temp)
+      for i in range(n_ensembles):
+        temp = training_conf.copy()
+        temp["job_type"] = "Ensembling"
+        temp["i_ensemble_per_omnifold"] = iN
+        confs.append(temp)
         
     # if submitit false then just launch job
     if not query.get("submitit", False):
