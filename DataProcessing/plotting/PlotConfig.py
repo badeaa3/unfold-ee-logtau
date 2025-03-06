@@ -105,5 +105,5 @@ plotConfig["sphericity"] = {
 }
 plotConfig["thrust"] = {
     "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dT", 
-    "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 5
+    "Ndivisions": 505, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 5
 }

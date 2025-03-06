@@ -38,6 +38,7 @@ std::map<std::string, float> getSelection(
  float NTrkCut, // number of charged tracks
  float NeuNchCut, // number of charged and neutral particles
  float EVisCut, // total visible energy [GeV]
+ float MissPCut, // magnitude of missing momentum 3-vector [GeV]
  /* thrust variations */
  bool keepChargedTracks, // include charged tracks in calculation
  bool keepNeutralTracks,  // include neutral tracks in calculation
@@ -56,6 +57,7 @@ std::map<std::string, float> getSelection(
     {"NTrkCut", NTrkCut},
     {"NeuNchCut", NeuNchCut},
     {"EVisCut", EVisCut},
+    {"MissPCut", MissPCut},
     {"keepChargedTracks", keepChargedTracks},
     {"keepNeutralTracks", keepNeutralTracks},
     {"doMET", doMET},
@@ -156,20 +158,24 @@ int main(int argc, char* argv[]) {
   float d_NTrk = 5;
   float d_NTrkPlusNeu = 13;
   float d_EVis = 0; // GeV
+  float d_MissP = 9999; // GeV
   /* thrust variations */
   bool d_ThrCh = true; // include charged tracks in calculation
   bool d_ThrNeu = true;  // include neutral tracks in calculation
   bool d_ThrMissP = false; // include missing momentum vector in calculation
 
   // push back the selections
-  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, 0, 1, 0, 0, 0, d_ThrCh, d_ThrNeu, d_ThrMissP)); // no event selections
-  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // nominal
-  selections.push_back(getSelection(7,      d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // ntpc 4 -> 7
-  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, 0.4,     d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // charged tracks pT 0.2 -> 0.4 GeV
-  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, 10,    d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, d_ThrMissP)); // total charged energy 15 -> 10 GeV
-  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, false,    d_ThrMissP)); // thrust without neutral objects
-  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_ThrCh, d_ThrNeu, true));       // thrust with missing momentum vector as object
-  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, 91.2/2, d_ThrCh, d_ThrNeu, d_ThrMissP)); // visible energy selection 0 -> 0.5*Ecm GeV
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, 0,     1,              0,      0,             0,      d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // no event selections
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // nominal
+  selections.push_back(getSelection(7,      d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // ntpc 4 -> 7
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, 0.4,     d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // charged tracks pT 0.2 -> 0.4 GeV
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, 10,    d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // total charged energy 15 -> 10 GeV
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, false,    d_ThrMissP)); // thrust without neutral objects
+  selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, d_ThrNeu, true));       // thrust with missing momentum vector as object
+  // selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, 91.2/2, d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // visible energy selection 0 -> 0.5*Ecm GeV
+  // selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, 20,      d_ThrCh, d_ThrNeu, d_ThrMissP)); // maxmimum magnitude of MissP 20 GeV
+  // selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, 20,      d_ThrCh, d_ThrNeu, true));       // maxmimum magnitude of MissP 20 GeV and thrust with missP included
+  // selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, 0.8,    d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // neutral energy 0.4 -> 0.8 GeV
   
   // vectors for selected objects
   std::vector<int> selectedParts;
@@ -198,6 +204,7 @@ int main(int argc, char* argv[]) {
   float s_NTrk;
   float s_NTrkPlusNeu;
   float s_EVis;
+  float s_MissP;
   /* thrust variations */
   bool s_ThrCh;
   bool s_ThrNeu;
@@ -216,6 +223,7 @@ int main(int argc, char* argv[]) {
   varDefs->Branch("NTrk", &s_NTrk);
   varDefs->Branch("NTrkPlusNeu", &s_NTrkPlusNeu);
   varDefs->Branch("EVis", &s_EVis);
+  varDefs->Branch("MissP", &s_MissP);
   varDefs->Branch("ThrCh", &s_ThrCh);
   varDefs->Branch("ThrNeu", &s_ThrNeu);
   varDefs->Branch("ThrMissP", &s_ThrMissP);
@@ -243,6 +251,7 @@ int main(int argc, char* argv[]) {
     s_NTrk = selections.at(iV)["NTrkCut"];
     s_NTrkPlusNeu = selections.at(iV)["NeuNchCut"];
     s_EVis = selections.at(iV)["EVisCut"];
+    s_MissP = selections.at(iV)["MissPCut"];
     s_ThrCh = selections.at(iV)["keepChargedTracks"];
     s_ThrNeu = selections.at(iV)["keepNeutralTracks"];
     s_ThrMissP = selections.at(iV)["doMET"];
@@ -486,30 +495,32 @@ int main(int argc, char* argv[]) {
 	      // TVector3 getThrust(int n, float *px, float *py, float *pz, THRUST::algorithm algo = THRUST::HERWIG, bool doWeight = false, bool doInvertWeight = false, float* weight = NULL, bool doMET = false, Short_t *pwflag = NULL)
         thrust = getThrust(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), THRUST::OPTIMAL);
         Thrust.push_back(thrust.Mag());
-	TTheta.push_back(thrust.Theta());
+	      TTheta.push_back(thrust.Theta());
 
         // compute event selection passes
-	bool eventSelection =
-	  passesNTupleAfterCut == 1
-	  && (TotalTrkEnergy.at(iV) >= selections.at(iV)["TotalTrkEnergyCut"])
-          && (TMath::Abs(TMath::Cos(STheta.at(iV))) <= selections.at(iV)["AbsCosSThetaCut"])
-          && (NTrk.at(iV) >= selections.at(iV)["NTrkCut"])
-          && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"]);
+        bool eventSelection =
+        passesNTupleAfterCut == 1
+        && (TotalTrkEnergy.at(iV) >= selections.at(iV)["TotalTrkEnergyCut"])
+              && (TMath::Abs(TMath::Cos(STheta.at(iV))) <= selections.at(iV)["AbsCosSThetaCut"])
+              && (NTrk.at(iV) >= selections.at(iV)["NTrkCut"])
+              && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"])
+              && (EVis.at(iV) >= selections.at(iV)["EVisCut"])
+              && (MissP.at(iV) < selections.at(iV)["MissPCut"]);
 
-	// append and fill histograms if selection passed
-	passEventSelection.push_back(eventSelection);
-	if(eventSelection){
-	  hists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
-	  hists[{iV, "nneu"}]->Fill(Neu.at(iV));
-	  hists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
-	  hists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
-	  hists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
-	  hists[{iV, "sphericity"}]->Fill(Sph.at(iV));
-	  hists[{iV, "thrust"}]->Fill(Thrust.at(iV));
-	  hists[{iV, "missP"}]->Fill(MissP.at(iV));
-	  hists[{iV, "evis"}]->Fill(EVis.at(iV));
-	  hists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
-	}
+      // append and fill histograms if selection passed
+      passEventSelection.push_back(eventSelection);
+      if(eventSelection){
+        hists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
+        hists[{iV, "nneu"}]->Fill(Neu.at(iV));
+        hists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
+        hists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
+        hists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
+        hists[{iV, "sphericity"}]->Fill(Sph.at(iV));
+        hists[{iV, "thrust"}]->Fill(Thrust.at(iV));
+        hists[{iV, "missP"}]->Fill(MissP.at(iV));
+        hists[{iV, "evis"}]->Fill(EVis.at(iV));
+        hists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
+      }
 
       }
 
