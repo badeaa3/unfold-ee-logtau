@@ -178,10 +178,13 @@ if __name__ == "__main__":
     # shared training configuration
     training_conf = {
       'output_directory' : str(top_dir),
-      'FILE_MC':'/global/homes/b/badea/aleph/data/processed/20220514/alephMCRecoAfterCutPaths_1994_ThrustReprocess.npz',
-      'FILE_DATA':'/global/homes/b/badea/aleph/data/processed/20220514/LEP1Data1994_recons_aftercut-MERGED_ThrustReprocess.npz',
-      'TrackVariation': 1, # nominal track selection as written here https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L143
-      'EvtVariation': 0, # nominal event selection
+      # 'FILE_MC':'/global/homes/b/badea/aleph/data/processed/20220514/alephMCRecoAfterCutPaths_1994_ThrustReprocess.npz',
+      # 'FILE_DATA':'/global/homes/b/badea/aleph/data/processed/20220514/LEP1Data1994_recons_aftercut-MERGED_ThrustReprocess.npz',
+      # 'TrackVariation': 1, # nominal track selection as written here https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L143
+      # 'EvtVariation': 0, # nominal event selection
+      'f_mc':'/eos/home-a/abadea/data/aleph/unfold-ee-logtau/DataProcessing/temp/5/alephMCRecoAfterCutPaths_1994_thrust.root',
+      'f_data':'/eos/home-a/abadea/data/aleph/unfold-ee-logtau/DataProcessing/LEP1Data1994_recons_aftercut-MERGED_thrust.root',
+      'SelectionIDX': 1, # chosen selection
       'niter': 3,
       'lr': 1e-4,
       'batch_size': 128,
@@ -214,21 +217,30 @@ if __name__ == "__main__":
     if args.run_systematics:
       for iN in range(n_systematics):
 
-        # track selections defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L141-L150
-        for TrackVariation in range(2, 9):
+        # sysematic variation
+        # 1 = nominal, 2 onwards = variations
+        for SystematicVariation in range(1, 13):
           temp = training_conf.copy()
-          temp["TrackVariation"] = TrackVariation
+          temp["SystematicVariation"] = SystematicVariation
           temp["job_type"] = "Systematics"
           temp["i_ensemble_per_omnifold"] = iN
           confs.append(temp)
 
-        # event selection defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L192-L197
-        for EvtVariation in [1]:
-          temp = training_conf.copy()
-          temp["EvtVariation"] = EvtVariation
-          temp["job_type"] = "Systematics"
-          temp["i_ensemble_per_omnifold"] = iN
-          confs.append(temp)
+        # # track selections defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L141-L150
+        # for TrackVariation in range(2, 9):
+        #   temp = training_conf.copy()
+        #   temp["TrackVariation"] = TrackVariation
+        #   temp["job_type"] = "Systematics"
+        #   temp["i_ensemble_per_omnifold"] = iN
+        #   confs.append(temp)
+
+        # # event selection defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L192-L197
+        # for EvtVariation in [1]:
+        #   temp = training_conf.copy()
+        #   temp["EvtVariation"] = EvtVariation
+        #   temp["job_type"] = "Systematics"
+        #   temp["i_ensemble_per_omnifold"] = iN
+        #   confs.append(temp)
 
     # bootstrap mc
     total_n_bootstraps_mc = 40
