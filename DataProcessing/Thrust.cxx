@@ -419,6 +419,16 @@ int main(int argc, char* argv[]) {
             hists[{pwflag[iP], "mass"}]->Fill(mass[iP]);
             hists[{pwflag[iP], "energy"}]->Fill(energy);
           }
+          
+          // always keep generator level particle
+          if (tree == "tgen" || tree == "tgenBefore"){
+            selectedParts.at(iV) += 1;
+            selectedPx.at(iV).push_back(px[iP]);
+            selectedPy.at(iV).push_back(py[iP]);
+            selectedPz.at(iV).push_back(pz[iP]);
+            selectedPwflag.at(iV).push_back(pwflag[iP]);
+            continue;
+          } 
 
           // charged track selection
           bool passChgTrkSel =
@@ -428,9 +438,6 @@ int main(int argc, char* argv[]) {
             && (TMath::Abs(d0[iP]) <= selections.at(iV)["d0Cut"])
             && (TMath::Abs(z0[iP]) <= selections.at(iV)["z0Cut"])
             && (ntpc[iP] >= selections.at(iV)["nTPCcut"]);
-
-          // always keep generator level particle
-          passChgTrkSel = passChgTrkSel || tree == "tgen" || tree == "tgenBefore";
           
           // populate
           if (passChgTrkSel) {
@@ -455,9 +462,6 @@ int main(int argc, char* argv[]) {
 	          && (energy >= selections.at(iV)["ECut"])
             && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["neutralTracksAbsCosThCut"]);
           
-          // always keep generator level particle
-          passNeuPartSel = passChgTrkSel || tree == "tgen" || tree == "tgenBefore";
-
           // populate
           if (passNeuPartSel) {
             if (debug) std::cout << "Passed neutral track selection" << std::endl;
@@ -473,6 +477,7 @@ int main(int argc, char* argv[]) {
               selectedPwflag.at(iV).push_back(pwflag[iP]);
             }
           }
+
         }
 
         // sphericity
