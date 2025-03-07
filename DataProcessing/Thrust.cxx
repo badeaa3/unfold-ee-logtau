@@ -428,6 +428,9 @@ int main(int argc, char* argv[]) {
             && (TMath::Abs(d0[iP]) <= selections.at(iV)["d0Cut"])
             && (TMath::Abs(z0[iP]) <= selections.at(iV)["z0Cut"])
             && (ntpc[iP] >= selections.at(iV)["nTPCcut"]);
+
+          // always keep generator level particle
+          passChgTrkSel = passChgTrkSel || tree == "tgen" || tree == "tgenBefore";
           
           // populate
           if (passChgTrkSel) {
@@ -452,6 +455,9 @@ int main(int argc, char* argv[]) {
 	          && (energy >= selections.at(iV)["ECut"])
             && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["neutralTracksAbsCosThCut"]);
           
+          // always keep generator level particle
+          passNeuPartSel = passChgTrkSel || tree == "tgen" || tree == "tgenBefore";
+
           // populate
           if (passNeuPartSel) {
             if (debug) std::cout << "Passed neutral track selection" << std::endl;
