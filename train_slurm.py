@@ -172,29 +172,11 @@ if __name__ == "__main__":
     # create top level output directory
     top_dir = os.path.abspath(os.path.join("results", f'training-{"%08x" % random.randrange(16**8)}', "%j"))
 
-    # shared training configuration
-    # training_conf = {
-    #   'output_directory' : top_dir,
-    #   'f_mc':'/eos/home-a/abadea/data/aleph/unfold-ee-logtau/DataProcessing/alephMCRecoAfterCutPaths_1994_thrust.root',
-    #   'f_data':'/eos/home-a/abadea/data/aleph/unfold-ee-logtau/DataProcessing/LEP1Data1994_recons_aftercut-MERGED_thrust.root',
-    #   'SystematicVariation': 1, # nominal=1
-    #   'niter': 3,
-    #   'lr': 1e-4,
-    #   'batch_size': 128,
-    #   'epochs': 50,
-    #   'early_stop': 10,
-    #   'verbose' : args.verbose,
-    #   'job_type' : None,
-    #   'i_ensemble_per_omnifold': 0, # i-th ensemble per omnifold
-    # }
     with open("training_conf.json") as f:
       training_conf = json.load(f)
     training_conf["output_directory"] = top_dir
     training_conf["verbose"] = args.verbose
-    # training_conf["epochs"] = 1
-    # training_conf["niter"] = 2
     print(training_conf)
-    # exit()
 
     # number of repeated trainings per omnifold configuration
     '''
