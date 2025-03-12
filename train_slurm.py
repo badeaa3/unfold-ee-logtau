@@ -100,20 +100,13 @@ def train(
     )
 
     # make weights directory
-    # weights_folder = Path(output_directory, "./model_weights").resolve() "%08x" % random.randrange(16**8)
     weights_folder_id = "%08x" % random.randrange(16**8)
     weights_folder = os.path.abspath(os.path.join(output_directory, f"./model_weights_{weights_folder_id}"))
     os.makedirs(weights_folder, exist_ok=True)
-    # weights_folder.mkdir()
-    # weights_folder = str(weights_folder)
 
     # save the starting weights
     outFileName = os.path.abspath(os.path.join(weights_folder, "starting_weights.npz"))
     np.savez(outFileName, weights_data=data.weight, weights_mc=mc.weight)
-    # outFileName = os.path.abspath(os.path.join(weights_folder, "starting_weights.h5"))
-    # with h5py.File(outFileName, 'w') as hf:
-    #   hf.create_dataset("weights_data", data=data.weight)
-    #   hf.create_dataset("weights_mc", data=mc.weight)
       
     # write conf to json in output directory for logging
     output_conf_name = os.path.abspath(os.path.join(weights_folder, "conf.json"))
@@ -122,9 +115,13 @@ def train(
     
     # prepare networks
     ndim = reco_data.shape[1] # Number of features we are going to create = thrust
-    model1 = omnifold.MLP(ndim)
-    model2 = omnifold.MLP(ndim)
-    
+    layer_sizes = [100, 100, 100]
+    model1 = omnifold.MLP(ndim, layer_sizes = layer_sizes, activation="relu")
+    model2 = omnifold.MLP(ndim, layer_sizes = layer_sizes, activation="relu")
+
+    print(model1.summary())
+    print(model2.summary())
+
     # prepare multifold
     mfold = omnifold.MultiFold(
       name = 'mfold_job{}'.format(job_id),
@@ -146,15 +143,12 @@ def train(
     mfold.Unfold()
     
     # get weights
-    omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2, batch_size=1000)
-    
-    # save weights to h5 file
-    # outFileName = os.path.abspath(os.path.join(weights_folder, "omnifold_weights.h5"))
-    # with h5py.File(outFileName, 'w') as hf:
-    #   hf.create_dataset("weights", data=omnifold_weights)
-    outFileName = os.path.abspath(os.path.join(weights_folder, "omnifold_weights.npy"))
-    np.save(outFileName, omnifold_weights)
-      
+    omnifold_weights = mfold.reweight(gen_mc, mfold.model2, batch_size=1000)
+    np.save(os.path.abspath(os.path.join(weights_folder, "omnifold_weights.npy")), omnifold_weights)
+
+    omnifold_weights_reco = mfold.reweight(reco_mc, mfold.model1, batch_size=1000)
+    np.save(os.path.abspath(os.path.join(weights_folder, "omnifold_weights_reco.npy")), omnifold_weights_reco)
+
 if __name__ == "__main__":
 
     # set up command line arguments

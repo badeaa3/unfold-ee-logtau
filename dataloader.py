@@ -17,8 +17,14 @@ def DataLoader(config):
     mc_reco_mask = np.array([x[i] for x in np.array(f_mc["t/passEventSelection"])])
     # generator level only one element
     mc_gen = np.array([x[0] for x in np.array(f_mc["tgenBefore/Thrust"])]) # generator level without hadronic event selection
-    mc_gen_mask = np.array([x[0] for x in np.array(f_mc["tgenBefore/passEventSelection"])])
-
+    # mc_gen_mask = np.array([x[0] for x in np.array(f_mc["tgenBefore/passEventSelection"])])
+    mc_gen_mask = np.ones(f_mc['tgenBefore'].num_entries) # no selection on gen level
+    
+    # convert to log
+    data = np.log(1-data)
+    mc_reco = np.log(1-mc_reco)
+    mc_gen = np.log(1-mc_gen)
+    
     ###### pick up the correct event ID's to use directly tgenbefore
     a = np.array(f_mc["tgen/uniqueID"]) # generator level with hadronic event selection, events matched to reco
     b = np.array(f_mc["tgenBefore/uniqueID"]) # generator level without hadronic event selection
@@ -34,6 +40,7 @@ def DataLoader(config):
     mc_reco = reco_vals
     mc_reco_mask = pass_reco
 
+    # print(mc_reco.shape, mc_reco_mask.shape)
     # final preparation
     data = np.expand_dims(data[data_mask],-1) # We only want data events passing a selection criteria
     mc_reco = np.expand_dims(mc_reco, -1) # expand dimension
@@ -103,11 +110,11 @@ if __name__ == "__main__":
     # print(data[:5], mc_reco[:5], mc_gen[:5], mc_reco_mask[:5], mc_gen_mask[:5])
     # print("new")
 
-    training_conf = {
-      'f_data':'/global/homes/b/badea/aleph/data/ThrustDerivation/030725/LEP1Data1994_recons_aftercut-MERGED_thrust.root',
-      'f_mc':'/global/homes/b/badea/aleph/data/ThrustDerivation/030725/alephMCRecoAfterCutPaths_1994_thrust.root',
-      'SystematicVariation': 1, # chosen selection
-    }
-    data, mc_reco, mc_gen, mc_reco_mask, mc_gen_mask = DataLoader(training_conf)
-    print(data.shape, mc_reco.shape, mc_reco_mask.shape, mc_gen.shape, mc_gen_mask.shape)
-    print(data[:5], mc_reco[:5], mc_gen[:5], mc_reco_mask[:5], mc_gen_mask[:5])
+  training_conf = {
+    'f_data':'/global/homes/b/badea/aleph/data/ThrustDerivation/030725/LEP1Data1994_recons_aftercut-MERGED_thrust.root',
+    'f_mc':'/global/homes/b/badea/aleph/data/ThrustDerivation/030725/alephMCRecoAfterCutPaths_1994_thrust.root',
+    'SystematicVariation': 1, # chosen selection
+  }
+  data, mc_reco, mc_gen, mc_reco_mask, mc_gen_mask = DataLoader(training_conf)
+  print(data.shape, mc_reco.shape, mc_reco_mask.shape, mc_gen.shape, mc_gen_mask.shape)
+  print(data[:5], mc_reco[:5], mc_gen[:5], mc_reco_mask[:5], mc_gen_mask[:5])
