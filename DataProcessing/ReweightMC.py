@@ -73,23 +73,23 @@ mc_paths = {
         "tree" : "t" # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
     },
     "HERWIG7" : {
-        "path" : "/global/homes/b/badea/aleph/data/LEP1MCVariations/abaty/HERWIG7/2_10_2024_LEP1MC/LEP-Matchbox-S1000-1_0_0.root",
+        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/HERWIG7/2_10_2024_LEP1MC/LEP-Matchbox-S1000-1_0_0.root",
         "tree" : "t"
     },
     "SHERPA" : {
-        "path" : "/global/homes/b/badea/aleph/data/LEP1MCVariations/abaty/SHERPA/2_10_2024_LEP1MC/Sherpa_RNG100_0_0.root",
+        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/SHERPA/2_10_2024_LEP1MC/Sherpa_RNG100_0_0.root",
         "tree" : "t"
     },
     "PYTHIA8" : {
-        "path" : "/global/homes/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_withSphericity_v2.root",
+        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_withSphericity_v2.root",
         "tree" : "tgen"
     },
     "PYTHIA8_DIRE" : {
-        "path": "/global/homes/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_DIRE.root",
+        "path": "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_DIRE.root",
         "tree" : "tgen"
     },
     "PYTHIA8_VINCIA" : {
-        "path" : "/global/homes/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_VINCIA.root",
+        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_VINCIA.root",
         "tree" : "tgen"
     }
 }
