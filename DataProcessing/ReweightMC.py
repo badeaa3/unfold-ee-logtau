@@ -69,8 +69,8 @@ def loadDataParticles(filePath, treeName, branches, maxNPart):
 
 mc_paths = {
     "ArchivedPYTHIA6" : {
-        "path" : "",
-        "tree" : "t"
+        "path" : "/pscratch/sd/b/badea/aleph/data/alephMCRecoAfterCutPaths_1994.root",
+        "tree" : "t" # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
     },
     "HERWIG7" : {
         "path" : "/global/homes/b/badea/aleph/data/LEP1MCVariations/abaty/HERWIG7/2_10_2024_LEP1MC/LEP-Matchbox-S1000-1_0_0.root",
@@ -125,9 +125,9 @@ print(model_name)
 
 # Particle level distribution reweighting 
 aleph_mc = loadDataParticles(
-    filePath = mc_paths["PYTHIA8"]["path"], # "/global/homes/b/badea/aleph/data/ThrustDerivation/030725/alephMCRecoAfterCutPaths_1994_thrust.root", 
-    treeName = mc_paths["PYTHIA8"]["tree"], # "t", # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
-    branches = ["px", "py", "pz", "mass", "isCharged"],
+    filePath = mc_paths["ArchivedPYTHIA6"]["path"],
+    treeName = mc_paths["ArchivedPYTHIA6"]["tree"],
+    branches = ["px", "py", "pz", "mass", "charge"],
     maxNPart = 80
 )
 print(aleph_mc.shape)
