@@ -11,3 +11,6 @@ results/
 *.root
 *.exe
 *.npz
+*.npy
+*.h5
+*.pkl
