@@ -131,6 +131,29 @@ def calc_hist(vals, bins=10, weights=None, density=True):
         
     return hist, errs, bins
 
+def ratio_with_uncertainty(A, B, A_err=None, B_err=None):
+    ratio = np.zeros_like(A, dtype=np.float64)
+    ratio_err = np.zeros_like(A, dtype=np.float64)
+
+    # Avoid division by zero
+    nonzero = B != 0
+    # ratio[nonzero] = A[nonzero] / B[nonzero]
+    ratio = A / B
+    
+    if type(A_err) == np.ndarray and type(B_err) == np.ndarray:
+        # ratio_err[nonzero] = ratio[nonzero] * np.sqrt(
+        #     (A_err[nonzero] / A[nonzero])**2 + (B_err[nonzero] / B[nonzero])**2
+        # )
+        ratio_err = ratio * np.sqrt(
+            (A_err / A)**2 + (B_err / B)**2
+        )
+    
+    # if there's a divide by zero then set to positive infinity
+    ratio = np.nan_to_num(ratio, posinf=np.inf)
+    ratio_err = np.nan_to_num(ratio_err, posinf=np.inf)
+
+    return ratio, ratio_err
+
 def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
 
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]}, figsize=(6,6))
@@ -159,15 +182,22 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
                 plot["x"], 
                 label=plot["label"], 
                 color=plot["color"],
-                ls=plot["ls"]
+                ls=plot["ls"],
+                lw=2
             )
 
     # plot ratios
     for key, plot in inPlots.items():
-        ratio_denom_idx = 0 if plot["y"].shape == ratio_denom[0].shape else 1
-        plot["ratio_y"] = plot["y"] / (ratio_denom[ratio_denom_idx] + epsilon)
+        ratio_denom_idx = 0 if plot["y"].shape == ratio_denom[0][0].shape else 1
+        # plot["ratio_y"] = plot["y"] / (ratio_denom[ratio_denom_idx] + epsilon)
+        # get ratio
+        if "yerr" in plot.keys():
+            plot["ratio_y"], plot["ratio_yerr"] = ratio_with_uncertainty(plot["y"], ratio_denom[ratio_denom_idx][0], plot["yerr"], ratio_denom[ratio_denom_idx][1])
+        else:
+            plot["ratio_y"], _ = ratio_with_uncertainty(plot["y"], ratio_denom[ratio_denom_idx][0])
+        # plot
         if plot["plotType"] == "errorbar":
-            plot["ratio_yerr"] = plot["yerr"] / (ratio_denom[ratio_denom_idx] + epsilon)
+            # plot["ratio_yerr"] = plot["yerr"] / (ratio_denom[ratio_denom_idx] + epsilon)
             ax2.errorbar(
                 plot["x"], 
                 plot["ratio_y"], 
@@ -192,7 +222,7 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
     ax1.legend(loc = style["legend_loc"], 
                bbox_to_anchor = style["legend_bbox"], 
                ncol = style["legend_ncol"],
-               fontsize=11)
+               fontsize = style["legend_fontsize"])
     
     # axis settings
     ax1.set_ylabel(style["ax1_ylabel"])
