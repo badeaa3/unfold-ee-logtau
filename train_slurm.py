@@ -11,7 +11,7 @@ import os
 import tensorflow as tf
 import tensorflow.keras.backend as K
 import random
-from pathlib import Path
+# from pathlib import Path
 import time
 import argparse
 import json
@@ -20,6 +20,8 @@ import h5py
 import numpy as np
 import shutil
 import subprocess
+import math
+import itertools
 
 # custom code
 import dataloader
@@ -70,12 +72,19 @@ def train(
     except:
         job_id = "%08x" % random.randrange(16**8)
         
-    output_directory = Path(str(output_directory).replace("%j", job_id))    
+    output_directory = os.path.abspath(output_directory.replace("%j", job_id))
     os.makedirs(output_directory, exist_ok=True)
     print(output_directory)
         
     # load the aleph reconstructed data, reconstructed mc, and generator mc
     reco_data, reco_mc, gen_mc, pass_reco, pass_gen = dataloader.DataLoader(conf)
+
+    # run a closure test where data is replaced by reco MC
+    if "run_closure_test" in conf.keys() and conf["run_closure_test"]:
+       print("Running a closure test where data is replaced by reco MC")
+       print(reco_data.shape)
+       reco_data = reco_mc[pass_reco]
+       print(reco_data.shape)
 
     # create the event weights
     weights_mc = np.ones(gen_mc.shape[0], dtype=np.float32)
@@ -100,28 +109,27 @@ def train(
     )
 
     # make weights directory
-    # weights_folder = Path(output_directory, "./model_weights").resolve() "%08x" % random.randrange(16**8)
     weights_folder_id = "%08x" % random.randrange(16**8)
-    weights_folder = Path(output_directory, f"./model_weights_{weights_folder_id}").resolve()
-    weights_folder.mkdir()
-    weights_folder = str(weights_folder)
+    weights_folder = os.path.abspath(os.path.join(output_directory, f"./model_weights_{weights_folder_id}"))
+    os.makedirs(weights_folder, exist_ok=True)
 
     # save the starting weights
-    outFileName = Path(weights_folder, f"starting_weights.h5").resolve()
-    with h5py.File(outFileName, 'w') as hf:
-      hf.create_dataset("weights_data", data=data.weight)
-      hf.create_dataset("weights_mc", data=mc.weight)
+    outFileName = os.path.abspath(os.path.join(weights_folder, "starting_weights.npz"))
+    np.savez(outFileName, weights_data=data.weight, weights_mc=mc.weight)
       
     # write conf to json in output directory for logging
-    output_conf_name = Path(weights_folder, "./conf.json").resolve()
+    output_conf_name = os.path.abspath(os.path.join(weights_folder, "conf.json"))
     with open(output_conf_name, 'w') as file:
       json.dump(conf, file, indent=4)  # indent=4 for pretty printing
     
     # prepare networks
     ndim = reco_data.shape[1] # Number of features we are going to create = thrust
-    model1 = omnifold.MLP(ndim)
-    model2 = omnifold.MLP(ndim)
-    
+    model1 = omnifold.MLP(ndim, layer_sizes = conf["layer_sizes"], activation="relu")
+    model2 = omnifold.MLP(ndim, layer_sizes = conf["layer_sizes"], activation="relu")
+
+    print(model1.summary())
+    print(model2.summary())
+
     # prepare multifold
     mfold = omnifold.MultiFold(
       name = 'mfold_job{}'.format(job_id),
@@ -143,54 +151,36 @@ def train(
     mfold.Unfold()
     
     # get weights
-    omnifold_weights = mfold.reweight(gen_mc[pass_gen], mfold.model2, batch_size=1000)
-    
-    # save weights to h5 file
-    outFileName = Path(weights_folder, f"omnifold_weights.h5").resolve()
-    with h5py.File(outFileName, 'w') as hf:
-      hf.create_dataset("weights", data=omnifold_weights)
-      
+    omnifold_weights = mfold.reweight(gen_mc, mfold.model2, batch_size=1000)
+    np.save(os.path.abspath(os.path.join(weights_folder, "omnifold_weights.npy")), omnifold_weights)
+
+    omnifold_weights_reco = mfold.reweight(reco_mc, mfold.model1, batch_size=1000)
+    np.save(os.path.abspath(os.path.join(weights_folder, "omnifold_weights_reco.npy")), omnifold_weights_reco)
+
 if __name__ == "__main__":
 
     # set up command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--slurm", help="path to json file containing slurm configuration", default=None)
     parser.add_argument("--njobs", help="number of jobs to actually launch. default is all", default=-1, type=int)
-    parser.add_argument('--verbose', action='store_true', default=False,help='Run the scripts with more verbose output')
-    parser.add_argument('--run_systematics', action='store_true', default=False,help='Run the track and event selection systematic variations')
-    parser.add_argument('--run_bootstrap_mc', action='store_true', default=False,help='Run the bootstrapping for MC')
-    parser.add_argument('--run_bootstrap_data', action='store_true', default=False,help='Run the bootstrapping for data')
-    parser.add_argument('--run_ensembling', action='store_true', default=False,help='Run the ensembling by retraining without changing the inputs')
+    parser.add_argument('--verbose', action='store_true', default=False, help='Run the scripts with more verbose output')
+    parser.add_argument('--run_systematics', action='store_true', default=False, help='Run the track and event selection systematic variations')
+    parser.add_argument('--run_bootstrap_mc', action='store_true', default=False, help='Run the bootstrapping for MC')
+    parser.add_argument('--run_bootstrap_data', action='store_true', default=False, help='Run the bootstrapping for data')
+    parser.add_argument('--run_ensembling', action='store_true', default=False, help='Run the ensembling by retraining without changing the inputs')
+    parser.add_argument('--run_closure_test', action='store_true', default=False, help="Run a closure test where data is replaced by reco MC.")
+    parser.add_argument('--run_hyperparameter_scan', action='store_true', default=False, help='Run the hyperparameter scan')
+    parser.add_argument('--run_niter_scan', action='store_true', default=False, help='Run the number of iteration scan based on the optimized hyperparameters')
     args = parser.parse_args()
-        
-    # read in query
-    if Path(args.slurm).resolve().exists():
-        query_path = Path(args.slurm).resolve()
-    else:
-        # throw
-        raise ValueError(f"Could not locate {args.slurm} in query directory or as absolute path")
-    with open(query_path) as f:
-        query = json.load(f)
 
     # create top level output directory
-    top_dir = Path("results", f'./training-{"%08x" % random.randrange(16**8)}', "%j").resolve()
+    top_dir = os.path.abspath(os.path.join("results", f'training-{"%08x" % random.randrange(16**8)}', "%j"))
 
-    # shared training configuration
-    training_conf = {
-      'output_directory' : str(top_dir),
-      'FILE_MC':'/global/homes/b/badea/aleph/data/processed/20220514/alephMCRecoAfterCutPaths_1994_ThrustReprocess.npz',
-      'FILE_DATA':'/global/homes/b/badea/aleph/data/processed/20220514/LEP1Data1994_recons_aftercut-MERGED_ThrustReprocess.npz',
-      'TrackVariation': 1, # nominal track selection as written here https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L143
-      'EvtVariation': 0, # nominal event selection
-      'niter': 3,
-      'lr': 1e-4,
-      'batch_size': 128,
-      'epochs': 50,
-      'early_stop': 10,
-      'verbose' : args.verbose,
-      'job_type' : None,
-      'i_ensemble_per_omnifold': 0, # i-th ensemble per omnifold
-    }
+    with open("training_conf.json") as f:
+      training_conf = json.load(f)
+    training_conf["output_directory"] = top_dir
+    training_conf["verbose"] = args.verbose
+    print(training_conf)
 
     # number of repeated trainings per omnifold configuration
     '''
@@ -209,83 +199,122 @@ if __name__ == "__main__":
     confs = []
 
     # add configurations for track and event selection systematic variations
-    total_n_systematics = 12 # closest to 10 which divides by 4
-    n_systematics = int(total_n_systematics / n_training_per_node)
+    total_n_systematics = 10 # closest to 10 which divides by 4
+    n_systematics = math.ceil(total_n_systematics / n_training_per_node)
     if args.run_systematics:
-      for iN in range(n_systematics):
+      for i in range(n_systematics):
 
-        # track selections defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L141-L150
-        for TrackVariation in range(2, 9):
+        # sysematic variation
+        # 1 = nominal, 2 onwards = variations
+        SystematicVariationList = [2, 3, 4, 5, 6] # according to the order in DataProcessing/Thrust.cxx
+        for SystematicVariation in SystematicVariationList:
           temp = training_conf.copy()
-          temp["TrackVariation"] = TrackVariation
+          temp["SystematicVariation"] = SystematicVariation
           temp["job_type"] = "Systematics"
-          temp["i_ensemble_per_omnifold"] = iN
-          confs.append(temp)
-
-        # event selection defined https://github.com/badeaa3/ALEPHOmnifold/blob/main/src/Thrust.cxx#L192-L197
-        for EvtVariation in [1]:
-          temp = training_conf.copy()
-          temp["EvtVariation"] = EvtVariation
-          temp["job_type"] = "Systematics"
-          temp["i_ensemble_per_omnifold"] = iN
+          temp["i_ensemble_per_omnifold"] = i
           confs.append(temp)
 
     # bootstrap mc
     total_n_bootstraps_mc = 40
-    n_bootstraps_mc = int(total_n_bootstraps_mc / n_training_per_node)
+    n_bootstraps_mc = math.ceil(total_n_bootstraps_mc / n_training_per_node)
     if args.run_bootstrap_mc:
-      for strapn in range(n_bootstraps_mc):
+      for i in range(n_bootstraps_mc):
         temp = training_conf.copy()
         temp["job_type"] = "BootstrapMC"
-        temp["i_ensemble_per_omnifold"] = strapn
+        temp["i_ensemble_per_omnifold"] = i
         confs.append(temp)
 
     # bootstrap data
     total_n_bootstraps_data = 40
-    n_bootstraps_data = int(total_n_bootstraps_data / n_training_per_node)
+    n_bootstraps_data = math.ceil(total_n_bootstraps_data / n_training_per_node)
     if args.run_bootstrap_data:
-      for strapn in range(n_bootstraps_data):
+      for i in range(n_bootstraps_data):
         temp = training_conf.copy()
         temp["job_type"] = "BootstrapData"
-        temp["i_ensemble_per_omnifold"] = strapn
+        temp["i_ensemble_per_omnifold"] = i
         confs.append(temp)
     
     # add configurations for ensembling
-    total_n_ensembles = 400
-    n_ensembles = int(total_n_ensembles / n_training_per_node)
+    total_n_ensembles = 200
+    n_ensembles = math.ceil(total_n_ensembles / n_training_per_node)
     if args.run_ensembling:
       for i in range(n_ensembles):
         temp = training_conf.copy()
         temp["job_type"] = "Ensembling"
-        temp["i_ensemble_per_omnifold"] = iN
+        temp["i_ensemble_per_omnifold"] = i
         confs.append(temp)
-        
-    # if submitit false then just launch job
-    if not query.get("submitit", False):
-        for iC, conf in enumerate(confs):
-            # only launch a single job
-            if args.njobs != -1 and (iC+1) > args.njobs:
-                continue
-            train(conf)
-        exit()
-    
 
-    # submission
-    executor = submitit.AutoExecutor(folder=top_dir)
-    executor.update_parameters(**query.get("slurm", {}))
-    # the following line tells the scheduler to only run at most 2 jobs at once. By default, this is several hundreds
-    # executor.update_parameters(slurm_array_parallelism=2)
-    
-    # loop over configurations
-    jobs = []
-    with executor.batch():
-        for iC, conf in enumerate(confs):
-            
-            # only launch a single job
-            if args.njobs != -1 and (iC+1) > args.njobs:
-                continue
-            
-            # print(conf)
+    # add configuration for closure check with a single job
+    if args.run_closure_test:
+      temp = training_conf.copy()
+      temp["run_closure_test"] = args.run_closure_test
+      temp["job_type"] = "ClosureTest"
+      confs.append(temp)
 
-            job = executor.submit(train, conf) # **conf
-            jobs.append(job)
+    # add configurations for hyperparameter scan
+    if args.run_hyperparameter_scan:
+      h_layer_sizes = [
+         [50]*3, [100]*3, [200]*3, # scan the width
+         [100]*2, [100]*4 # scan the depth
+      ]
+      h_batch_sizes = [256, 512, 1024, 2048]
+      h_learning_rates = [1e-4, 5e-4, 1e-3, 5e-3]
+      hyperparameter_scan = list(itertools.product(h_layer_sizes, h_batch_sizes, h_learning_rates))
+      for layer_sizes, batch_size, lr in hyperparameter_scan:
+        temp = training_conf.copy()
+        temp["job_type"] = "HyperparameterScan"
+        temp["layer_sizes"] = layer_sizes
+        temp["batch_size"] = batch_size
+        temp["lr"] = lr
+        temp["niter"] = 1
+        confs.append(temp)
+
+    # add configurations for niter scan
+    if args.run_niter_scan:
+      niter = list(range(1,7))
+      for niter in niter:
+        temp = training_conf.copy()
+        temp["job_type"] = "NiterScan"
+        temp["niter"] = niter
+        confs.append(temp)
+
+
+    # if no slurm config file provided then just launch job
+    if args.slurm == None:
+      
+      print("No slurm config file provided. Running jobs locally.")
+      for iC, conf in enumerate(confs):
+          # only launch a single job
+          if args.njobs != -1 and (iC+1) > args.njobs:
+              continue
+          train(conf)
+    
+    # if slurm config file provided then launch job on slurm
+    else:
+      
+      # read in query
+      query_path = os.path.abspath(args.slurm)
+      if not os.path.exists(query_path):
+        raise ValueError(f"Could not locate {args.slurm}")
+      with open(query_path) as f:
+        query = json.load(f)
+
+      # submission
+      executor = submitit.AutoExecutor(folder=top_dir)
+      executor.update_parameters(**query.get("slurm", {}))
+      # the following line tells the scheduler to only run at most 2 jobs at once. By default, this is several hundreds
+      # executor.update_parameters(slurm_array_parallelism=2)
+      
+      # loop over configurations
+      jobs = []
+      with executor.batch():
+          for iC, conf in enumerate(confs):
+              
+              # only launch a single job
+              if args.njobs != -1 and (iC+1) > args.njobs:
+                  continue
+              
+              # print(conf)
+
+              job = executor.submit(train, conf) # **conf
+              jobs.append(job)

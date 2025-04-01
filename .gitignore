@@ -3,6 +3,7 @@ __pycache__/
 .ipynb_checkpoints/
 results/
 .vscode/
+temp/
 
 # files
 *.pdf
@@ -11,3 +12,6 @@ results/
 *.root
 *.exe
 *.npz
+*.npy
+*.h5
+*.pkl

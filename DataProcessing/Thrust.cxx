@@ -419,6 +419,16 @@ int main(int argc, char* argv[]) {
             hists[{pwflag[iP], "mass"}]->Fill(mass[iP]);
             hists[{pwflag[iP], "energy"}]->Fill(energy);
           }
+          
+          // always keep generator level particle
+          if (tree == "tgen" || tree == "tgenBefore"){
+            selectedParts.at(iV) += 1;
+            selectedPx.at(iV).push_back(px[iP]);
+            selectedPy.at(iV).push_back(py[iP]);
+            selectedPz.at(iV).push_back(pz[iP]);
+            selectedPwflag.at(iV).push_back(pwflag[iP]);
+            continue;
+          } 
 
           // charged track selection
           bool passChgTrkSel =
@@ -467,6 +477,7 @@ int main(int argc, char* argv[]) {
               selectedPwflag.at(iV).push_back(pwflag[iP]);
             }
           }
+
         }
 
         // sphericity
