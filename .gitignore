@@ -15,3 +15,4 @@ temp/
 *.npy
 *.h5
 *.pkl
+.submission_file*
