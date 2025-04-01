@@ -73,22 +73,23 @@ def loadALEPH2004Result(hepData = "/global/homes/b/badea/aleph/data/HEPData-ins6
                 vals.append(row.strip().split(','))
                 
     hepdata = np.asarray(vals, dtype=float)
-
     aleph_bins = 1 - np.append(1.0, hepdata[::-1,1])
     aleph_midbins = (aleph_bins[1:] + aleph_bins[:-1])/2
     aleph_binwidths = aleph_bins[1:] - aleph_bins[:-1]
     aleph_thrust = hepdata[::-1,3]
-    aleph_thrust_errs = np.linalg.norm(hepdata[::-1,[-1,-3,-5]], axis=1)
+    aleph_thrust_errs_individual = hepdata[::-1,[4,6,8]]
+    aleph_thrust_errs = np.linalg.norm(aleph_thrust_errs_individual, axis=1)
     assert np.all(aleph_bins[1:] == 1 - hepdata[::-1,1]) and np.all(aleph_bins[:-1] == 1 - hepdata[::-1,2])
-
+    
     log_bins_min = -8 # aleph reported linear binning down to 0 but can't do that for log, so must pick a lower bound. Found that beyond this no more stats
     # aleph_log_bins = np.log(aleph_bins + np.exp(log_bins_min)) # before we used this but this is confusing. For the lowest (1-T) bin with a lower bin edge of 0 we just want to modify the left bin edge but not the right. Instead use the below.
     aleph_log_bins = np.log(aleph_bins)
     aleph_log_bins[0] =  log_bins_min
     aleph_log_midbins = (aleph_log_bins[1:] + aleph_log_bins[:-1])/2
     aleph_log_binwidths = aleph_log_bins[1:] - aleph_log_bins[:-1]
-    aleph_log_thrust = aleph_thrust * 0.01 / aleph_log_binwidths
-    aleph_log_thrust_errs = aleph_thrust_errs * 0.01 / aleph_log_binwidths
+    aleph_log_thrust = aleph_thrust * aleph_binwidths[0] / aleph_log_binwidths # because the reported value were scaled by 1/bin width
+    aleph_log_thrust_errs = aleph_thrust_errs * aleph_binwidths[0] / aleph_log_binwidths
+    aleph_log_thrust_errs_individual = aleph_thrust_errs_individual * aleph_binwidths[0] / np.repeat(np.expand_dims(aleph_log_binwidths,1), aleph_thrust_errs_individual.shape[1], 1) 
 
     aleph = {
         "aleph_bins" : aleph_bins,
@@ -96,12 +97,14 @@ def loadALEPH2004Result(hepData = "/global/homes/b/badea/aleph/data/HEPData-ins6
         "aleph_binwidths" : aleph_binwidths,
         "aleph_thrust" : aleph_thrust,
         "aleph_thrust_errs" : aleph_thrust_errs,
+        "aleph_thrust_errs_individual" : aleph_thrust_errs_individual,
         "log_bins_min" : log_bins_min,
         "aleph_log_bins" : aleph_log_bins,
         "aleph_log_midbins" : aleph_log_midbins,
         "aleph_log_binwidths" : aleph_log_binwidths,
         "aleph_log_thrust" : aleph_log_thrust,
-        "aleph_log_thrust_errs" : aleph_log_thrust_errs
+        "aleph_log_thrust_errs" : aleph_log_thrust_errs,
+        "aleph_log_thrust_errs_individual" : aleph_log_thrust_errs_individual
     }
     return aleph
 
@@ -183,11 +186,14 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
                 label=plot["label"], 
                 color=plot["color"],
                 ls=plot["ls"],
-                lw=2
+                lw=1
             )
 
     # plot ratios
     for key, plot in inPlots.items():
+        if "noratio" in plot.keys():
+            print(f"No ratio plot for {key}")
+            continue
         ratio_denom_idx = 0 if plot["y"].shape == ratio_denom[0][0].shape else 1
         # plot["ratio_y"] = plot["y"] / (ratio_denom[ratio_denom_idx] + epsilon)
         # get ratio

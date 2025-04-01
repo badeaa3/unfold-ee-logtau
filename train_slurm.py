@@ -20,6 +20,8 @@ import h5py
 import numpy as np
 import shutil
 import subprocess
+import math
+import itertools
 
 # custom code
 import dataloader
@@ -77,6 +79,13 @@ def train(
     # load the aleph reconstructed data, reconstructed mc, and generator mc
     reco_data, reco_mc, gen_mc, pass_reco, pass_gen = dataloader.DataLoader(conf)
 
+    # run a closure test where data is replaced by reco MC
+    if "run_closure_test" in conf.keys() and conf["run_closure_test"]:
+       print("Running a closure test where data is replaced by reco MC")
+       print(reco_data.shape)
+       reco_data = reco_mc[pass_reco]
+       print(reco_data.shape)
+
     # create the event weights
     weights_mc = np.ones(gen_mc.shape[0], dtype=np.float32)
     weights_data = np.ones(reco_data.shape[0], dtype=np.float32)
@@ -115,9 +124,8 @@ def train(
     
     # prepare networks
     ndim = reco_data.shape[1] # Number of features we are going to create = thrust
-    layer_sizes = [100, 100, 100]
-    model1 = omnifold.MLP(ndim, layer_sizes = layer_sizes, activation="relu")
-    model2 = omnifold.MLP(ndim, layer_sizes = layer_sizes, activation="relu")
+    model1 = omnifold.MLP(ndim, layer_sizes = conf["layer_sizes"], activation="relu")
+    model2 = omnifold.MLP(ndim, layer_sizes = conf["layer_sizes"], activation="relu")
 
     print(model1.summary())
     print(model2.summary())
@@ -160,14 +168,10 @@ if __name__ == "__main__":
     parser.add_argument('--run_bootstrap_mc', action='store_true', default=False, help='Run the bootstrapping for MC')
     parser.add_argument('--run_bootstrap_data', action='store_true', default=False, help='Run the bootstrapping for data')
     parser.add_argument('--run_ensembling', action='store_true', default=False, help='Run the ensembling by retraining without changing the inputs')
+    parser.add_argument('--run_closure_test', action='store_true', default=False, help="Run a closure test where data is replaced by reco MC.")
+    parser.add_argument('--run_hyperparameter_scan', action='store_true', default=False, help='Run the hyperparameter scan')
+    parser.add_argument('--run_niter_scan', action='store_true', default=False, help='Run the number of iteration scan based on the optimized hyperparameters')
     args = parser.parse_args()
-        
-    # read in query
-    query_path = os.path.abspath(args.slurm)
-    if not os.path.exists(query_path):
-      raise ValueError(f"Could not locate {args.slurm}")
-    with open(query_path) as f:
-      query = json.load(f)
 
     # create top level output directory
     top_dir = os.path.abspath(os.path.join("results", f'training-{"%08x" % random.randrange(16**8)}', "%j"))
@@ -195,8 +199,8 @@ if __name__ == "__main__":
     confs = []
 
     # add configurations for track and event selection systematic variations
-    total_n_systematics = 12 # closest to 10 which divides by 4
-    n_systematics = int(total_n_systematics / n_training_per_node)
+    total_n_systematics = 10 # closest to 10 which divides by 4
+    n_systematics = math.ceil(total_n_systematics / n_training_per_node)
     if args.run_systematics:
       for i in range(n_systematics):
 
@@ -212,7 +216,7 @@ if __name__ == "__main__":
 
     # bootstrap mc
     total_n_bootstraps_mc = 40
-    n_bootstraps_mc = int(total_n_bootstraps_mc / n_training_per_node)
+    n_bootstraps_mc = math.ceil(total_n_bootstraps_mc / n_training_per_node)
     if args.run_bootstrap_mc:
       for i in range(n_bootstraps_mc):
         temp = training_conf.copy()
@@ -222,7 +226,7 @@ if __name__ == "__main__":
 
     # bootstrap data
     total_n_bootstraps_data = 40
-    n_bootstraps_data = int(total_n_bootstraps_data / n_training_per_node)
+    n_bootstraps_data = math.ceil(total_n_bootstraps_data / n_training_per_node)
     if args.run_bootstrap_data:
       for i in range(n_bootstraps_data):
         temp = training_conf.copy()
@@ -231,41 +235,86 @@ if __name__ == "__main__":
         confs.append(temp)
     
     # add configurations for ensembling
-    total_n_ensembles = 400
-    n_ensembles = int(total_n_ensembles / n_training_per_node)
+    total_n_ensembles = 200
+    n_ensembles = math.ceil(total_n_ensembles / n_training_per_node)
     if args.run_ensembling:
       for i in range(n_ensembles):
         temp = training_conf.copy()
         temp["job_type"] = "Ensembling"
         temp["i_ensemble_per_omnifold"] = i
         confs.append(temp)
-        
-    # if submitit false then just launch job
-    if not query.get("submitit", False):
-        for iC, conf in enumerate(confs):
-            # only launch a single job
-            if args.njobs != -1 and (iC+1) > args.njobs:
-                continue
-            train(conf)
-        exit()
-    
 
-    # submission
-    executor = submitit.AutoExecutor(folder=top_dir)
-    executor.update_parameters(**query.get("slurm", {}))
-    # the following line tells the scheduler to only run at most 2 jobs at once. By default, this is several hundreds
-    # executor.update_parameters(slurm_array_parallelism=2)
-    
-    # loop over configurations
-    jobs = []
-    with executor.batch():
-        for iC, conf in enumerate(confs):
-            
-            # only launch a single job
-            if args.njobs != -1 and (iC+1) > args.njobs:
-                continue
-            
-            # print(conf)
+    # add configuration for closure check with a single job
+    if args.run_closure_test:
+      temp = training_conf.copy()
+      temp["run_closure_test"] = args.run_closure_test
+      temp["job_type"] = "ClosureTest"
+      confs.append(temp)
 
-            job = executor.submit(train, conf) # **conf
-            jobs.append(job)
+    # add configurations for hyperparameter scan
+    if args.run_hyperparameter_scan:
+      h_layer_sizes = [
+         [50]*3, [100]*3, [200]*3, # scan the width
+         [100]*2, [100]*4 # scan the depth
+      ]
+      h_batch_sizes = [256, 512, 1024, 2048]
+      h_learning_rates = [1e-4, 5e-4, 1e-3, 5e-3]
+      hyperparameter_scan = list(itertools.product(h_layer_sizes, h_batch_sizes, h_learning_rates))
+      for layer_sizes, batch_size, lr in hyperparameter_scan:
+        temp = training_conf.copy()
+        temp["job_type"] = "HyperparameterScan"
+        temp["layer_sizes"] = layer_sizes
+        temp["batch_size"] = batch_size
+        temp["lr"] = lr
+        temp["niter"] = 1
+        confs.append(temp)
+
+    # add configurations for niter scan
+    if args.run_niter_scan:
+      niter = list(range(1,7))
+      for niter in niter:
+        temp = training_conf.copy()
+        temp["job_type"] = "NiterScan"
+        temp["niter"] = niter
+        confs.append(temp)
+
+
+    # if no slurm config file provided then just launch job
+    if args.slurm == None:
+      
+      print("No slurm config file provided. Running jobs locally.")
+      for iC, conf in enumerate(confs):
+          # only launch a single job
+          if args.njobs != -1 and (iC+1) > args.njobs:
+              continue
+          train(conf)
+    
+    # if slurm config file provided then launch job on slurm
+    else:
+      
+      # read in query
+      query_path = os.path.abspath(args.slurm)
+      if not os.path.exists(query_path):
+        raise ValueError(f"Could not locate {args.slurm}")
+      with open(query_path) as f:
+        query = json.load(f)
+
+      # submission
+      executor = submitit.AutoExecutor(folder=top_dir)
+      executor.update_parameters(**query.get("slurm", {}))
+      # the following line tells the scheduler to only run at most 2 jobs at once. By default, this is several hundreds
+      # executor.update_parameters(slurm_array_parallelism=2)
+      
+      # loop over configurations
+      jobs = []
+      with executor.batch():
+          for iC, conf in enumerate(confs):
+              
+              # only launch a single job
+              if args.njobs != -1 and (iC+1) > args.njobs:
+                  continue
+              
+              # print(conf)
+
+              job = executor.submit(train, conf) # **conf
+              jobs.append(job)
