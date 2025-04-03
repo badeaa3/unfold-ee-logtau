@@ -97,5 +97,5 @@ if __name__ == "__main__":
     model_name = os.path.join(weights_folder, f'Reweight_Step2.weights.h5')
     callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
     print("Running Step 2 (reweight aleph to new mc) with model name: ", model_name)
-    epochs = 10
+    epochs = 50
     hist = doFitAndEvaluate(model, train_dataset_step2, val_dataset_step2, epochs, verbose, callbacks, model_name, aleph_mc)
