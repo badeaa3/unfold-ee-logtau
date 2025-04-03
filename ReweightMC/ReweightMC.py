@@ -39,7 +39,6 @@ if __name__ == "__main__":
     # training settings
     test_size = 0.2
     lr = 5e-4
-    epochs = 2
     batch_size = 512
     verbose = True
     top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/"
@@ -66,7 +65,7 @@ if __name__ == "__main__":
 
     # prepare datasets
     train_dataset_step1, val_dataset_step1 = create_train_val_datasets(data_0=aleph_mc, data_1=aleph_mc, test_size=test_size, batch_size=batch_size, normalize=True)
-    train_dataset_step2, val_dataset_step2 = create_train_val_datasets(data_0=new_mc, data_1=aleph_mc, test_size=test_size, batch_size=batch_size, normalize=True)
+    train_dataset_step2, val_dataset_step2 = create_train_val_datasets(data_0=aleph_mc, data_1=new_mc, test_size=test_size, batch_size=batch_size, normalize=True)
 
     # prepare PET network
     model = omnifold.PET(
@@ -88,13 +87,15 @@ if __name__ == "__main__":
     ]
 
     # Step 1 pretrain the model to get it to unity
-    model_name = os.path.join(weights_folder, f'Reweight_Step1_ALEPHMC.weights.h5')
+    model_name = os.path.join(weights_folder, f'Reweight_Step1.weights.h5')
     callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
-    print("Running Step 1 with model name: ", model_name)
+    print("Running Step 1 (pre-train reweight aleph to aleph) with model name: ", model_name)
+    epochs = 2
     hist = doFitAndEvaluate(model, train_dataset_step1, val_dataset_step1, epochs, verbose, callbacks, model_name, aleph_mc) 
 
     # Step 2 train the model for reweighting
-    model_name = os.path.join(weights_folder, f'Reweight_Step2_{new_mc_name}.weights.h5')
+    model_name = os.path.join(weights_folder, f'Reweight_Step2.weights.h5')
     callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
-    print("Running Step 2 with model name: ", model_name)
+    print("Running Step 2 (reweight aleph to new mc) with model name: ", model_name)
+    epochs = 10
     hist = doFitAndEvaluate(model, train_dataset_step2, val_dataset_step2, epochs, verbose, callbacks, model_name, aleph_mc)
