@@ -8,6 +8,7 @@ import tensorflow as tf
 mc_paths = {
     "ArchivedPYTHIA6" : {
         "path" : "/pscratch/sd/b/badea/aleph/data/alephMCRecoAfterCutPaths_1994.root",
+        "thrust_path" : "/global/homes/b/badea/aleph/data/ThrustDerivation/030725/alephMCRecoAfterCutPaths_1994_thrust.root",
         "tree" : "tgenBefore", # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
         "branches" : ["pmag", "eta", "phi"],
     },
@@ -22,9 +23,9 @@ mc_paths = {
         "branches" : ["pmag", "eta", "phi"],
     },
     "PYTHIA8" : {
-        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_withSphericity_v2.root",
-        "tree" : "tgen",
-        "branches" : ["p", "eta", "phi"],
+        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_PYTHIA8_MC_TGenBefore.root",
+        "tree" : "tgenBefore",
+        "branches" : ["pmag", "eta", "phi"],
     },
     "PYTHIA8_DIRE" : {
         "path": "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_DIRE.root",
@@ -52,6 +53,17 @@ def loadBranchAndPad(branch, maxN, value=0):
     a = ak.to_numpy(ak.fill_none(ak.pad_none(a, max(maxN,np.max(ak.num(a)))),value)) # must take maximum so that it pads to a uniform max and then cut down
     a = a[:,:maxN]
     return a
+
+def loadData(filePath, treeName, branches, SystematicVariation=0):
+    i = SystematicVariation
+    data = []
+    with uproot.open(filePath) as rFile:
+        for branch in branches:
+            temp = np.array([x[i] for x in np.array(rFile[f"{treeName}/{branch}"])]) # reco level
+            data.append(temp)
+    # stack to form data
+    data = np.stack(data,axis=1)
+    return data
 
 def loadDataParticles(filePath, treeName, branches, maxNPart, padValue = 0):
     # kinematics
