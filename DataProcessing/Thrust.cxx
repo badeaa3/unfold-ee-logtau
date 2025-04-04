@@ -115,6 +115,9 @@ int main(int argc, char* argv[]) {
     treeNames.push_back("tgen");
     treeNames.push_back("tgenBefore");
   }
+  if (inFileName.find("PYTHIA8") != std::string::npos) {
+    treeNames = {"tgenBefore"};
+  }
 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Input Data %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::unique_ptr<TFile> f (new TFile(inFileName.c_str(), "READ"));
