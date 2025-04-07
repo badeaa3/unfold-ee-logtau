@@ -224,7 +224,7 @@ if __name__ == "__main__":
     # add configurations for theory uncertainty scan
     if args.run_theory_uncert:
       theory_variations = [
-        ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-7fd8a490/Reweight_Step2.reweight.npy"]
+        ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-0eeee3d7/609ff241/model_weights_b22f1cf8/Reweight_Step2.reweight.npy"]
       ]
       for i in range(n_systematics):
         for name, inFileName in theory_variations:

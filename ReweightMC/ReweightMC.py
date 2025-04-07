@@ -130,7 +130,7 @@ def train(conf):
     model.compile(opt, loss = omnifold.net.weighted_binary_crossentropy)
     callbacks = [
         ReduceLROnPlateau(patience=1000, min_lr=1e-7, verbose=conf["verbose"], monitor="val_loss"),
-        EarlyStopping(patience=10, restore_best_weights=True,  monitor="val_loss"),
+        EarlyStopping(patience=conf["early_stopping_patience"], restore_best_weights=True,  monitor="val_loss"),
     ]
 
     # Step 1 pretrain the model to get it to unity
@@ -168,7 +168,8 @@ if __name__ == "__main__":
         "maxNPart": 80,
         "new_mc_name": "PYTHIA8",
         "step1_epochs" : 2,
-        "step2_epochs" : 100
+        "step2_epochs" : 200,
+        "early_stopping_patience" : 20,
     }
     confs = [conf]
 
