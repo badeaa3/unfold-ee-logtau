@@ -10,32 +10,32 @@ mc_paths = {
         "path" : "/pscratch/sd/b/badea/aleph/data/alephMCRecoAfterCutPaths_1994.root",
         "thrust_path" : "/global/homes/b/badea/aleph/data/ThrustDerivation/030725/alephMCRecoAfterCutPaths_1994_thrust.root",
         "tree" : "tgenBefore", # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
-        "branches" : ["pmag", "eta", "phi"],
+        "branches" : ["eta", "phi", "pmag"], # order matters should be eta, phi, log(pt)/pt/pmag
     },
     "HERWIG7" : {
         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/HERWIG7/2_10_2024_LEP1MC/LEP-Matchbox-S1000-1_0_0.root",
         "tree" : "t",
-        "branches" : ["pmag", "eta", "phi"],
+        "branches" : ["eta", "phi", "pmag"],
     },
     "SHERPA" : {
         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/SHERPA/2_10_2024_LEP1MC/Sherpa_RNG100_0_0.root",
         "tree" : "t",
-        "branches" : ["pmag", "eta", "phi"],
+        "branches" : ["eta", "phi", "pmag"],
     },
     "PYTHIA8" : {
         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_PYTHIA8_MC_TGenBefore.root",
         "tree" : "tgenBefore",
-        "branches" : ["pmag", "eta", "phi"],
+        "branches" : ["eta", "phi", "pmag"],
     },
     "PYTHIA8_DIRE" : {
         "path": "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_DIRE.root",
         "tree" : "tgen",
-        "branches" : ["p", "eta", "phi"],
+        "branches" : ["eta", "phi", "pmag"],
     },
     "PYTHIA8_VINCIA" : {
         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_VINCIA.root",
         "tree" : "tgen",
-        "branches" : ["p", "eta", "phi"],
+        "branches" : ["eta", "phi", "pmag"],
     }
 }
 
@@ -65,7 +65,7 @@ def loadData(filePath, treeName, branches, SystematicVariation=0):
     data = np.stack(data,axis=1)
     return data
 
-def loadDataParticles(filePath, treeName, branches, maxNPart, padValue = 0):
+def loadDataParticles(filePath, treeName, branches, maxNPart, padValue = np.nan):
     # kinematics
     data = []
     with uproot.open(filePath) as rFile:
@@ -82,7 +82,7 @@ def loadDataParticles(filePath, treeName, branches, maxNPart, padValue = 0):
     data = np.stack(data, axis=-1)
     return data
 
-def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, normalize=True):
+def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, normalize=True, standardize=False):
     
     # create labels
     labels_data_0 = np.zeros(len(data_0),dtype=np.float32)
@@ -106,7 +106,30 @@ def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, nor
     # print(data.shape, labels.shape)
 
     # standardize data
-    # data = (data - np.mean(data, axis=0)) / np.std(data, axis=0)
+    data_mean, data_std = None, None    
+    if standardize:
+        print("Number of nan entries pre-standardization: ", np.isnan(data).sum())
+        
+        # assume masked data is np.nan
+        data_mean = np.nanmean(data, axis=(0, 1), keepdims=True)  # shape: (1, 1, F)
+        data_std = np.nanstd(data, axis=(0, 1), keepdims=True)    # shape: (1, 1, F)
+        print("Pre-standardization mean: ", data_mean.shape, data_mean)
+        print("Pre-standardization std: ",data_std.shape, data_std)
+
+        # Standardize: only apply to valid values
+        standardized_data = (data - data_mean) / data_std
+        standardized_data_mean = np.nanmean(standardized_data, axis=(0, 1), keepdims=True)  # shape: (1, 1, F)
+        standardized_data_std = np.nanstd(standardized_data, axis=(0, 1), keepdims=True)    # shape: (1, 1, F)
+        print("Post-standardization mean: ",standardized_data_mean.shape, standardized_data_mean)
+        print("Post-standardization std: ", standardized_data_std.shape, standardized_data_std)
+
+        # update data
+        data = standardized_data
+        print("Number of nan entries post-standardization: ", np.isnan(data).sum())
+
+    # convert from np.nan to 0 for masked data
+    data = np.nan_to_num(data, nan=0)  # convert np.nan to 0
+    print(np.isnan(data).sum())
 
     # Split into training (80%) and validation (20%) sets randomly
     train_data, val_data, train_labels, val_labels = train_test_split(data, labels, test_size=test_size, stratify=labels)
@@ -120,4 +143,15 @@ def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, nor
     train_dataset = train_dataset.shuffle(buffer_size=len(train_data)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
     val_dataset = val_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
-    return train_dataset, val_dataset
+    return train_dataset, val_dataset, data_mean, data_std
+
+
+if __name__ == "__main__":
+    aleph_mc = loadDataParticles(
+        filePath = mc_paths["ArchivedPYTHIA6"]["path"],
+        treeName = mc_paths["ArchivedPYTHIA6"]["tree"],
+        branches = mc_paths["ArchivedPYTHIA6"]["branches"],
+        maxNPart = 80,
+    )
+    train_dataset_step1, val_dataset_step1, data_mean_step1, data_std_step1 = create_train_val_datasets(data_0=aleph_mc, data_1=aleph_mc, test_size=0.2, batch_size=512, normalize=True, standardize=True)
+    print(data_mean_step1, data_std_step1)

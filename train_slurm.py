@@ -89,6 +89,12 @@ def train(
     # create the event weights
     weights_mc = np.ones(gen_mc.shape[0], dtype=np.float32)
     weights_data = np.ones(reco_data.shape[0], dtype=np.float32)
+
+    if "theory_variation_weights_path" in conf.keys():
+        print("Using theory variation weights")
+        theory_variation_weights = np.load(conf["theory_variation_weights_path"])
+        weights_mc = theory_variation_weights
+        print(weights_mc.shape)
     
     # make omnifold dataloaders ready for training
     data = omnifold.DataLoader(
@@ -171,6 +177,7 @@ if __name__ == "__main__":
     parser.add_argument('--run_closure_test', action='store_true', default=False, help="Run a closure test where data is replaced by reco MC.")
     parser.add_argument('--run_hyperparameter_scan', action='store_true', default=False, help='Run the hyperparameter scan')
     parser.add_argument('--run_niter_scan', action='store_true', default=False, help='Run the number of iteration scan based on the optimized hyperparameters')
+    parser.add_argument('--run_theory_uncert', action='store_true', default=False, help='Run the theory uncertainty scan')
     args = parser.parse_args()
 
     # create top level output directory
@@ -212,6 +219,19 @@ if __name__ == "__main__":
           temp["SystematicVariation"] = SystematicVariation
           temp["job_type"] = "Systematics"
           temp["i_ensemble_per_omnifold"] = i
+          confs.append(temp)
+
+    # add configurations for theory uncertainty scan
+    if args.run_theory_uncert:
+      theory_variations = [
+        ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-7fd8a490/Reweight_Step2.reweight.npy"]
+      ]
+      for i in range(n_systematics):
+        for name, inFileName in theory_variations:
+          temp = training_conf.copy()
+          temp["job_type"] = f"TheoryUncertainty_{name}"
+          temp["i_ensemble_per_omnifold"] = i
+          temp["theory_variation_weights_path"] = inFileName
           confs.append(temp)
 
     # bootstrap mc
@@ -277,7 +297,6 @@ if __name__ == "__main__":
         temp["job_type"] = "NiterScan"
         temp["niter"] = niter
         confs.append(temp)
-
 
     # if no slurm config file provided then just launch job
     if args.slurm == None:
