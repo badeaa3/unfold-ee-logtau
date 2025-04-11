@@ -15,10 +15,25 @@ import json
 import omnifold
 from ReweightMCDataLoading import *
 
-import sys
-sys.path.append("../")
-from train_slurm import set_gpu_growth
-
+# set gpu growth
+def set_gpu_growth():
+  gpus = tf.config.list_physical_devices('GPU')
+  if gpus:
+    try:
+      # Currently, memory growth needs to be the same across GPUs
+      for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+        try:
+          import horovod.tensorflow as hvd
+          hvd.init()
+          tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
+        except:
+          print("No horovod")
+      logical_gpus = tf.config.list_logical_devices('GPU')
+      print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+      # Memory growth must be set before GPUs have been initialized
+      print(e)
 
 # fitting function
 def doFit(model, train_dataset, val_dataset, epochs, verbose, callbacks, name):
