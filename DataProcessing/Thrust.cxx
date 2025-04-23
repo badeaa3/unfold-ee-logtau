@@ -110,11 +110,16 @@ int main(int argc, char* argv[]) {
     outFileName += "_thrust.root";
   }
   // set tree names
-  std::vector<std::string> treeNames{"t"};
-  if (inFileName.find("LEP1Data") == std::string::npos) {
-    treeNames.push_back("tgen");
-    treeNames.push_back("tgenBefore");
+  std::vector<std::string> treeNames{};
+  // aleph data file
+  if (inFileName.find("LEP1Data") != std::string::npos) {
+    treeNames = {"t"};
   }
+  // aleph mc file
+  if (inFileName.find("LEP1Data") == std::string::npos) {
+    treeNames = {"tgen", "tgenBefore"}; // "t"
+  }
+  // alternative mc file
   if (inFileName.find("PYTHIA8") != std::string::npos) {
     treeNames = {"tgenBefore"};
   }
@@ -139,6 +144,7 @@ int main(int argc, char* argv[]) {
   float pz[maxPart];
   float pmag[maxPart];
   float mass[maxPart];
+  int charge[maxPart];
 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Output File %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::unique_ptr<TFile> fout (new TFile(outFileName.c_str(), "RECREATE"));
@@ -294,7 +300,8 @@ int main(int argc, char* argv[]) {
     t->SetBranchAddress("pz", &pz);
     t->SetBranchAddress("pmag", &pmag);
     t->SetBranchAddress("mass", &mass);
-
+    t->SetBranchAddress("charge", &charge);
+    
     // create output tree
     std::unique_ptr<TTree> tout (new TTree(tree.c_str(), ""));
     unsigned long long uniqueIDCopy; 
@@ -425,11 +432,50 @@ int main(int argc, char* argv[]) {
           
           // always keep generator level particle
           if (tree == "tgen" || tree == "tgenBefore"){
-            selectedParts.at(iV) += 1;
-            selectedPx.at(iV).push_back(px[iP]);
-            selectedPy.at(iV).push_back(py[iP]);
-            selectedPz.at(iV).push_back(pz[iP]);
-            selectedPwflag.at(iV).push_back(pwflag[iP]);
+
+	    // flag to save the particle or not
+	    bool saveParticle = true;
+	    
+	    // clean away neutrals with phi=0 and fixed pt of 0.001 (arbitrary select [0.00099, 0.001009] since exact comparison is an issue with precision error)
+	    if (charge[iP] == 0 && phi[iP] == 0 && pt[iP] > 0.00099 && pt[iP] < 0.001009) saveParticle = false;
+	    
+	    // clean away electrons from conversion photons
+	    if (iP > 0){
+
+	      // check if conversion electron
+	      bool isConversionElectron = true;
+	      //both electrons
+	      if( pwflag[iP] != 2 ) isConversionElectron = false;
+	      if( pwflag[iP-1] != 2 ) isConversionElectron = false;
+	      //opposite charge required 
+	      if( charge[iP] != -(charge[iP-1])) isConversionElectron = false;
+	      //dtheta and dphi matching
+	      float conversionDPhi = 0.05;
+	      float conversionDTheta = 0.05;
+	      if( TMath::Abs(theta[iP] - theta[iP-1]) > conversionDTheta) isConversionElectron = false;
+	      if( TMath::ACos(TMath::Cos(phi[iP] - phi[iP-1])) > conversionDPhi) isConversionElectron = false;
+
+	      // if conversion electron then don't save particle and remove previous particle also
+	      if (isConversionElectron){
+		saveParticle = false;
+		selectedParts.at(iV) -= 1;
+		selectedPx.at(iV).pop_back();
+		selectedPy.at(iV).pop_back();
+		selectedPz.at(iV).pop_back();
+		selectedPwflag.at(iV).pop_back();
+	      }
+	    }
+
+	    // save the particle
+	    if (saveParticle){
+	      selectedParts.at(iV) += 1;
+	      selectedPx.at(iV).push_back(px[iP]);
+	      selectedPy.at(iV).push_back(py[iP]);
+	      selectedPz.at(iV).push_back(pz[iP]);
+	      selectedPwflag.at(iV).push_back(pwflag[iP]);
+	    }
+
+	    // skip rest of analysis section
             continue;
           } 
 
