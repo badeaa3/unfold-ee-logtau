@@ -190,15 +190,6 @@ int main(int argc, char* argv[]) {
   // selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, 20,      d_ThrCh, d_ThrNeu, true));       // maxmimum magnitude of MissP 20 GeV and thrust with missP included
   // selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, 0.8,    d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // neutral energy 0.4 -> 0.8 GeV
   
-  // // vectors for selected objects
-  // std::vector<int> selectedParts;
-  // std::vector<std::vector<float> > selectedPx, selectedPy, selectedPz;
-  // std::vector<std::vector<Short_t> > selectedPwflag;
-  
-  // // event level quantities
-  // TVector3 thrust;
-  // std::unique_ptr<Sphericity> spher;
-
   // save variation definitions to a tree
   std::unique_ptr<TTree> varDefs (new TTree("Selections", ""));
   
@@ -243,13 +234,6 @@ int main(int argc, char* argv[]) {
   
   // push back for each variation and save to tree
   for (unsigned int iV = 0; iV < selections.size(); iV++) {
-
-    // // push back holders for selected particles to perform calculations
-    // selectedParts.push_back(0);
-    // selectedPx.push_back(std::vector<float>());
-    // selectedPy.push_back(std::vector<float>());
-    // selectedPz.push_back(std::vector<float>());
-    // selectedPwflag.push_back(std::vector<Short_t>());
       
     // write selections
     s_nTPC = selections.at(iV)["nTPCcut"];
