@@ -12,13 +12,24 @@ LDFLAGS  = $(ROOTLIBS)
 # Target Executable
 TARGET = Thrust.exe
 SRC = Thrust.cxx
+DICT = LinkDef.cxx
+HDRS = LinkDef.h
 
 # Build Rule
-all: $(TARGET)
+all: $(DICT) $(TARGET)
 
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+# Dictionary Generation Rule
+$(DICT): $(HDRS)
+	@echo "Generating ROOT dictionary..."
+	rootcling -f $(DICT) -c $(HDRS)
+
+# $(TARGET): $(SRC)
+# 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+
+
+$(TARGET): $(SRC) $(DICT)
+	$(CXX) $(CXXFLAGS) $(SRC) $(DICT) -o $@ $(LDFLAGS)
 
 # Clean Rule
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(DICT) Dict_rdict.pcm

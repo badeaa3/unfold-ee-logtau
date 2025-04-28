@@ -21,7 +21,8 @@ def main():
                 "o" : ops.outFile.replace(".root", f"_{thisdiv}.root"),
                 "divide" : ops.ndivs,
                 "thisdiv" : thisdiv,
-                "dryrun" : ops.dryrun
+                "dryrun" : ops.dryrun,
+                "debug" : ops.debug
             })
 
     # launch jobs
@@ -46,10 +47,13 @@ def options():
     parser.add_argument("-n", "--ndivs", help="Number of divisions to partition the input file into", default=1, type=int)
     parser.add_argument("-j", "--ncpu", help="Number of cores to use for multiprocessing", default=1, type=int)
     parser.add_argument("--dryrun", help="Do not execute any commands", action="store_true")
+    parser.add_argument("--debug", help="Enable debug mode", action="store_true")
     return parser.parse_args()
 
 def runThrust(conf):
     cmd = f"./Thrust.exe -i {conf['i']} -o {conf['o']} --divide {conf['divide']} --thisdiv {conf['thisdiv']}"
+    if conf["debug"]:
+        cmd += " --debug"
     print(cmd)
     if not conf["dryrun"]:
         os.system(cmd)
