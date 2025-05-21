@@ -16,3 +16,5 @@ temp/
 *.h5
 *.pkl
 .submission_file*
+*.pcm
+*.h

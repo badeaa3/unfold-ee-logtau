@@ -110,12 +110,31 @@ int main(int argc, char* argv[]) {
     outFileName += "_thrust.root";
   }
   // set tree names
-  std::vector<std::string> treeNames{"t"};
-  if (inFileName.find("LEP1Data") == std::string::npos) {
-    treeNames.push_back("tgen");
-    treeNames.push_back("tgenBefore");
+  std::vector<std::string> treeNames{};
+  std::string inFileType;
+  // aleph data file
+  if (inFileName.find("LEP1Data") != std::string::npos) {
+    inFileType = "LEP1Data";
+    treeNames = {"t"};
   }
+  // aleph mc file
+  if (inFileName.find("LEP1Data") == std::string::npos) {
+    inFileType = "ALEPHMC";
+    treeNames = {"t", "tgen", "tgenBefore"};
+  }
+  // pythia8 mc file
   if (inFileName.find("PYTHIA8") != std::string::npos) {
+    inFileType = "PYTHIA8";
+    treeNames = {"tgenBefore"};
+  }
+  // herwig
+  if (inFileName.find("Herwig") != std::string::npos) {
+    inFileType = "Herwig";
+    treeNames = {"tgenBefore"};
+  }
+  // sherpa
+  if (inFileName.find("Sherpa") != std::string::npos) {
+    inFileType = "Sherpa";
     treeNames = {"tgenBefore"};
   }
 
@@ -139,6 +158,7 @@ int main(int argc, char* argv[]) {
   float pz[maxPart];
   float pmag[maxPart];
   float mass[maxPart];
+  Short_t charge[maxPart];
 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% Output File %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::unique_ptr<TFile> fout (new TFile(outFileName.c_str(), "RECREATE"));
@@ -180,15 +200,6 @@ int main(int argc, char* argv[]) {
   // selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, d_ENeu, d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, 20,      d_ThrCh, d_ThrNeu, true));       // maxmimum magnitude of MissP 20 GeV and thrust with missP included
   // selections.push_back(getSelection(d_nTPC, d_AbsCosThetaChg, d_ptChg, d_d0, d_z0, 0.8,    d_AbsCosThetaNeu, d_Ech, d_AbsCosSTheta, d_NTrk, d_NTrkPlusNeu, d_EVis, d_MissP, d_ThrCh, d_ThrNeu, d_ThrMissP)); // neutral energy 0.4 -> 0.8 GeV
   
-  // vectors for selected objects
-  std::vector<int> selectedParts;
-  std::vector<std::vector<float> > selectedPx, selectedPy, selectedPz;
-  std::vector<std::vector<Short_t> > selectedPwflag;
-  
-  // event level quantities
-  TVector3 thrust;
-  std::unique_ptr<Sphericity> spher;
-
   // save variation definitions to a tree
   std::unique_ptr<TTree> varDefs (new TTree("Selections", ""));
   
@@ -233,13 +244,6 @@ int main(int argc, char* argv[]) {
   
   // push back for each variation and save to tree
   for (unsigned int iV = 0; iV < selections.size(); iV++) {
-
-    // push back holders for selected particles to perform calculations
-    selectedParts.push_back(0);
-    selectedPx.push_back(std::vector<float>());
-    selectedPy.push_back(std::vector<float>());
-    selectedPz.push_back(std::vector<float>());
-    selectedPwflag.push_back(std::vector<Short_t>());
       
     // write selections
     s_nTPC = selections.at(iV)["nTPCcut"];
@@ -278,6 +282,7 @@ int main(int argc, char* argv[]) {
 
     // load input tree
     bool genTree = tree == "tgen" || tree == "tgenBefore";
+    genTree = genTree || inFileType == "HERWIG" || inFileType == "SHERPA";
     std::unique_ptr<TTree> t ((TTree*) f->Get(tree.c_str()));
     t->SetBranchAddress("uniqueID", &uniqueID);
     t->SetBranchAddress("nParticle", &nParticle);
@@ -294,7 +299,29 @@ int main(int argc, char* argv[]) {
     t->SetBranchAddress("pz", &pz);
     t->SetBranchAddress("pmag", &pmag);
     t->SetBranchAddress("mass", &mass);
+    t->SetBranchAddress("charge", &charge);
 
+    // event level quantities
+    TVector3 thrust;
+    std::unique_ptr<Sphericity> spher;
+    
+    // vectors for selected objects
+    std::vector<int> selectedParts;
+    std::vector<std::vector<float> > selectedPx, selectedPy, selectedPz;
+    std::vector<std::vector<Short_t> > selectedPwflag;
+  
+    // push back for each variation and save to tree
+    for (unsigned int iV = 0; iV < selections.size(); iV++) {
+      // if tgen or tgenbefore only do the first nominal variation
+      if (genTree && iV > 0 ) break;
+      // push back holders for selected particles to perform calculations
+      selectedParts.push_back(0);
+      selectedPx.push_back(std::vector<float>());
+      selectedPy.push_back(std::vector<float>());
+      selectedPz.push_back(std::vector<float>());
+      selectedPwflag.push_back(std::vector<Short_t>());
+    }
+    
     // create output tree
     std::unique_ptr<TTree> tout (new TTree(tree.c_str(), ""));
     unsigned long long uniqueIDCopy; 
@@ -312,7 +339,18 @@ int main(int argc, char* argv[]) {
     tout->Branch("EVis", &EVis);
     tout->Branch("TTheta", &TTheta);
     tout->Branch("passEventSelection", &passEventSelection);
+    // save for nominal
+    tout->Branch("NSelectedParticles", &selectedParts);
+    tout->Branch("px", &selectedPx);
+    tout->Branch("py", &selectedPy);
+    tout->Branch("pz", &selectedPz);
+    tout->Branch("pwflag", &selectedPwflag);
 
+    std::vector<float> conversionElectronTheta, conversionElectronPhi, conversionElectronPt;
+    tout->Branch("conversionElectronTheta", &conversionElectronTheta);
+    tout->Branch("conversionElectronPhi", &conversionElectronPhi);
+    tout->Branch("conversionElectronPt", &conversionElectronPt);
+    
     // create object level histograms for each pwflag
     std::map<std::pair<int, std::string>, TH1D*> hists;
     for(int iP=0; iP <= 5; iP++){
@@ -383,6 +421,9 @@ int main(int argc, char* argv[]) {
       Thrust.clear();
       TTheta.clear();
       passEventSelection.clear();
+      conversionElectronTheta.clear();
+      conversionElectronPhi.clear();
+      conversionElectronPt.clear();
       for (unsigned int iV = 0; iV < selections.size(); iV++) {
         if (genTree && iV > 0 ) break;
         selectedParts.at(iV) = 0;
@@ -405,7 +446,7 @@ int main(int argc, char* argv[]) {
         // loop over particles
         for (int iP = 0; iP < nParticle; iP++) {
 
-          if (debug) std::cout << TString::Format("iP %d, pwflag %d, theta %f, pt %f, d0 %f, z0 %f, ntpc %d", iP, pwflag[iP], theta[iP], pt[iP], d0[iP], z0[iP], ntpc[iP]) << std::endl;
+          if (debug) std::cout << TString::Format("iP %d, pwflag %d, theta %f, pt %f, d0 %f, z0 %f, ntpc %d, charge %i", iP, pwflag[iP], theta[iP], pt[iP], d0[iP], z0[iP], ntpc[iP], charge[iP]) << std::endl;
 
           // compute the particle energy
           float energy = TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
@@ -424,12 +465,59 @@ int main(int argc, char* argv[]) {
           }
           
           // always keep generator level particle
-          if (tree == "tgen" || tree == "tgenBefore"){
-            selectedParts.at(iV) += 1;
-            selectedPx.at(iV).push_back(px[iP]);
-            selectedPy.at(iV).push_back(py[iP]);
-            selectedPz.at(iV).push_back(pz[iP]);
-            selectedPwflag.at(iV).push_back(pwflag[iP]);
+          if (genTree){
+
+	    // flag to save the particle or not
+	    bool saveParticle = true;
+	    
+   	    // // clean away neutrals with phi=0 and fixed pt of 0.001 (arbitrary select [0.00099, 0.001009] since exact comparison is an issue with precision error)
+	    if (inFileType == "ALEPHMC" && charge[iP] == 0 && std::abs(phi[iP]) <= 0.001 && pt[iP] > 0.00099 && pt[iP] < 0.001009){
+	      saveParticle = false;
+	    }
+	    
+	    // // clean away electrons from conversion photons
+	    if (inFileType == "ALEPHMC" && iP > 0){
+
+	      // check if conversion electron
+	      bool isConversionElectron = true;
+	      //both electrons
+	      if( pwflag[iP] != 2 ) isConversionElectron = false;
+	      if( pwflag[iP-1] != 2 ) isConversionElectron = false;
+	      //opposite charge required 
+	      if( charge[iP] != -(charge[iP-1])) isConversionElectron = false;
+	      //dtheta and dphi matching
+	      float conversionDPhi = 0.05;
+	      float conversionDTheta = 0.05;
+	      if( TMath::Abs(theta[iP] - theta[iP-1]) > conversionDTheta) isConversionElectron = false;
+	      if( TMath::ACos(TMath::Cos(phi[iP] - phi[iP-1])) > conversionDPhi) isConversionElectron = false;
+
+	      // if conversion electron then don't save particle and remove previous particle also
+	      if (isConversionElectron){
+		saveParticle = false;
+		selectedParts.at(iV) -= 1;
+		selectedPx.at(iV).pop_back();
+		selectedPy.at(iV).pop_back();
+		selectedPz.at(iV).pop_back();
+		selectedPwflag.at(iV).pop_back();
+
+		// std::cout << "Conversion electron " << theta[iP] << std::endl;
+		conversionElectronTheta.push_back(theta[iP]);
+		conversionElectronPhi.push_back(phi[iP]);
+		conversionElectronPt.push_back(pt[iP]);
+		
+	      }
+	    }
+
+	    // save the particle
+	    if (saveParticle){
+	      selectedParts.at(iV) += 1;
+	      selectedPx.at(iV).push_back(px[iP]);
+	      selectedPy.at(iV).push_back(py[iP]);
+	      selectedPz.at(iV).push_back(pz[iP]);
+	      selectedPwflag.at(iV).push_back(pwflag[iP]);
+	    }
+
+	    // skip rest of analysis section
             continue;
           } 
 
@@ -506,10 +594,10 @@ int main(int argc, char* argv[]) {
         }
 
         // thrust
-	      // TVector3 getThrust(int n, float *px, float *py, float *pz, THRUST::algorithm algo = THRUST::HERWIG, bool doWeight = false, bool doInvertWeight = false, float* weight = NULL, bool doMET = false, Short_t *pwflag = NULL)
+	// TVector3 getThrust(int n, float *px, float *py, float *pz, THRUST::algorithm algo = THRUST::HERWIG, bool doWeight = false, bool doInvertWeight = false, float* weight = NULL, bool doMET = false, Short_t *pwflag = NULL)
         thrust = getThrust(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), THRUST::OPTIMAL);
         Thrust.push_back(thrust.Mag());
-	      TTheta.push_back(thrust.Theta());
+	TTheta.push_back(thrust.Theta());
 
         // compute event selection passes
         bool eventSelection =
