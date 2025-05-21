@@ -122,9 +122,19 @@ int main(int argc, char* argv[]) {
     inFileType = "ALEPHMC";
     treeNames = {"t", "tgen", "tgenBefore"};
   }
-  // alternative mc file
+  // pythia8 mc file
   if (inFileName.find("PYTHIA8") != std::string::npos) {
     inFileType = "PYTHIA8";
+    treeNames = {"tgenBefore"};
+  }
+  // herwig
+  if (inFileName.find("Herwig") != std::string::npos) {
+    inFileType = "Herwig";
+    treeNames = {"tgenBefore"};
+  }
+  // sherpa
+  if (inFileName.find("Sherpa") != std::string::npos) {
+    inFileType = "Sherpa";
     treeNames = {"tgenBefore"};
   }
 
@@ -272,6 +282,7 @@ int main(int argc, char* argv[]) {
 
     // load input tree
     bool genTree = tree == "tgen" || tree == "tgenBefore";
+    genTree = genTree || inFileType == "HERWIG" || inFileType == "SHERPA";
     std::unique_ptr<TTree> t ((TTree*) f->Get(tree.c_str()));
     t->SetBranchAddress("uniqueID", &uniqueID);
     t->SetBranchAddress("nParticle", &nParticle);
