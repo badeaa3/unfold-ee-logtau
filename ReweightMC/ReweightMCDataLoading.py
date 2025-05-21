@@ -7,36 +7,35 @@ import tensorflow as tf
 # file paths
 mc_paths = {
     "ArchivedPYTHIA6" : {
-        "path" : "/pscratch/sd/b/badea/aleph/data/alephMCRecoAfterCutPaths_1994.root",
-        "thrust_path" : "/global/homes/b/badea/aleph/data/ThrustDerivation/030725/alephMCRecoAfterCutPaths_1994_thrust.root",
+        "path" : "/pscratch/sd/b/badea/aleph/data/ThrustDerivation/042825/alephMCRecoAfterCutPaths_1994_thrust_CleanNeutralAndConversion.root",
         "tree" : "tgenBefore", # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
-        "branches" : ["eta", "phi", "pmag"], # order matters should be eta, phi, log(pt)/pt/pmag
-    },
-    "HERWIG7" : {
-        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/HERWIG7/2_10_2024_LEP1MC/LEP-Matchbox-S1000-1_0_0.root",
-        "tree" : "t",
-        "branches" : ["eta", "phi", "pmag"],
-    },
-    "SHERPA" : {
-        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/SHERPA/2_10_2024_LEP1MC/Sherpa_RNG100_0_0.root",
-        "tree" : "t",
-        "branches" : ["eta", "phi", "pmag"],
+        "branches" : ["px", "py", "pz"]
     },
     "PYTHIA8" : {
-        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_PYTHIA8_MC_TGenBefore.root",
+        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/ThrustDerivation/042925/LEP1_PYTHIA8_MC_TGenBefore_thrust.root",
         "tree" : "tgenBefore",
-        "branches" : ["eta", "phi", "pmag"],
+        "branches" : ["px", "py", "pz"]
     },
-    "PYTHIA8_DIRE" : {
-        "path": "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_DIRE.root",
-        "tree" : "tgen",
-        "branches" : ["eta", "phi", "pmag"],
-    },
-    "PYTHIA8_VINCIA" : {
-        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_VINCIA.root",
-        "tree" : "tgen",
-        "branches" : ["eta", "phi", "pmag"],
-    }
+    # "PYTHIA8_DIRE" : {
+    #     "path": "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_DIRE.root",
+    #     "tree" : "tgen",
+    #     "branches" : ["px", "py", "pz"]
+    # },
+    # "PYTHIA8_VINCIA" : {
+    #     "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_VINCIA.root",
+    #     "tree" : "tgen",
+    #     "branches" : ["px", "py", "pz"]
+    # },
+        # "HERWIG7" : {
+    #     "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/HERWIG7/2_10_2024_LEP1MC/LEP-Matchbox-S1000-1_0_0.root",
+    #     "tree" : "t",
+    #     "branches" : ["px", "py", "pz"]
+    # },
+    # "SHERPA" : {
+    #     "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/SHERPA/2_10_2024_LEP1MC/Sherpa_RNG100_0_0.root",
+    #     "tree" : "t",
+    #     "branches" : ["px", "py", "pz"]
+    # },
 }
 
 def expit(x):
@@ -50,6 +49,11 @@ def reweight(data, model, batch_size, verbose=True):
 
 def loadBranchAndPad(branch, maxN, value=0):
     a = branch.array()
+    a = ak.to_numpy(ak.fill_none(ak.pad_none(a, max(maxN,np.max(ak.num(a)))),value)) # must take maximum so that it pads to a uniform max and then cut down
+    a = a[:,:maxN]
+    return a
+
+def padAwkward(a, maxN, value=0):
     a = ak.to_numpy(ak.fill_none(ak.pad_none(a, max(maxN,np.max(ak.num(a)))),value)) # must take maximum so that it pads to a uniform max and then cut down
     a = a[:,:maxN]
     return a
@@ -70,17 +74,33 @@ def loadDataParticles(filePath, treeName, branches, maxNPart, padValue = np.nan)
     data = []
     with uproot.open(filePath) as rFile:
         tree = rFile[treeName]
-        # print(tree.num_entries)
-        # print(tree.keys())
         for key in branches:
             if key in tree.keys():
-                temp = loadBranchAndPad(tree[key], maxNPart, value=padValue) # pad to get to maxNPart
+                # temp = loadBranchAndPad(tree[key], maxNPart, value=padValue) # pad to get to maxNPart
+                temp = tree[key].array()[:,0]
+                temp = padAwkward(temp, maxNPart, value=padValue) # pad to get to maxNPart
                 data.append(temp)
             else:
                 print(f"Attempted to add key not in tree: {key} for file {filePath}")
     # stack and return
     data = np.stack(data, axis=-1)
     return data
+
+def convert_PxPyPz_to_EtaPhiPmag(x):
+    # x shape = [events, particles, 3], where 3 = [px,py,pz]
+    # output = [events, particles, 3], where 3 = [eta, phi, pmag]
+
+    px = x[:,:,0]
+    py = x[:,:,1]
+    pz = x[:,:,2]
+    
+    pmag = np.sqrt(px**2 + py**2 + pz**2)
+    theta = np.arccos(pz / pmag)
+    eta = -np.log(np.tan(theta / 2)) # used because the PET assumes eta provided for the pair wise distance. It doesn't handle theta where you have to wrap around for 2pi
+    phi = np.arctan2(py, px)
+    out = np.stack([eta, phi, pmag], axis=-1)
+
+    return out
 
 def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, normalize=True, standardize=False):
     
@@ -129,7 +149,7 @@ def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, nor
 
     # convert from np.nan to 0 for masked data
     data = np.nan_to_num(data, nan=0)  # convert np.nan to 0
-    print(np.isnan(data).sum())
+    print("Number of nan entries after converting nan to 0: ", np.isnan(data).sum())
 
     # Split into training (80%) and validation (20%) sets randomly
     train_data, val_data, train_labels, val_labels = train_test_split(data, labels, test_size=test_size, stratify=labels)
@@ -147,11 +167,14 @@ def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, nor
 
 
 if __name__ == "__main__":
+    # dtype = "PYTHIA8"
+    dtype = "ArchivedPYTHIA6"
     aleph_mc = loadDataParticles(
-        filePath = mc_paths["ArchivedPYTHIA6"]["path"],
-        treeName = mc_paths["ArchivedPYTHIA6"]["tree"],
-        branches = mc_paths["ArchivedPYTHIA6"]["branches"],
+        filePath = mc_paths[dtype]["path"],
+        treeName = mc_paths[dtype]["tree"],
+        branches = mc_paths[dtype]["branches"],
         maxNPart = 80,
     )
+    aleph_mc = convert_PxPyPz_to_EtaPhiPmag(aleph_mc)
     train_dataset_step1, val_dataset_step1, data_mean_step1, data_std_step1 = create_train_val_datasets(data_0=aleph_mc, data_1=aleph_mc, test_size=0.2, batch_size=512, normalize=True, standardize=True)
     print(data_mean_step1, data_std_step1)

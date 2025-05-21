@@ -107,6 +107,7 @@ def train(conf):
         branches = mc_paths["ArchivedPYTHIA6"]["branches"],
         maxNPart = conf["maxNPart"],
     )
+    aleph_mc = convert_PxPyPz_to_EtaPhiPmag(aleph_mc)
     print(aleph_mc.shape)
     new_mc = loadDataParticles(
         filePath = mc_paths[conf["new_mc_name"]]["path"], 
@@ -114,6 +115,7 @@ def train(conf):
         branches = mc_paths[conf["new_mc_name"]]["branches"],
         maxNPart = conf["maxNPart"],
     )
+    new_mc = convert_PxPyPz_to_EtaPhiPmag(new_mc)
     print(new_mc.shape)
 
     # prepare datasets
