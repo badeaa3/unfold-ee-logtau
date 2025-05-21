@@ -224,7 +224,8 @@ if __name__ == "__main__":
     # add configurations for theory uncertainty scan
     if args.run_theory_uncert:
       theory_variations = [
-        ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-0eeee3d7/609ff241/model_weights_b22f1cf8/Reweight_Step2.reweight.npy"]
+        # ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-0eeee3d7/609ff241/model_weights_b22f1cf8/Reweight_Step2.reweight.npy"] # without gen cleaning
+        ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-dcb1df64/38187555/model_weights_fe518abe/Reweight_Step2.reweight.npy"] # with gen cleaning
       ]
       for i in range(n_systematics):
         for name, inFileName in theory_variations:
@@ -255,7 +256,7 @@ if __name__ == "__main__":
         confs.append(temp)
     
     # add configurations for ensembling
-    total_n_ensembles = 200
+    total_n_ensembles = 10 # 200
     n_ensembles = math.ceil(total_n_ensembles / n_training_per_node)
     if args.run_ensembling:
       for i in range(n_ensembles):
