@@ -1,187 +1,43 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.callbacks import EarlyStopping,ModelCheckpoint, ReduceLROnPlateau
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 import numpy as np
-import uproot
+# import uproot
 import pickle
 import os
-import awkward as ak
+import argparse
+# import awkward as ak
+import random
+import submitit
+import json
 
 import omnifold
 from ReweightMCDataLoading import *
 
-# def expit(x):
-#     return 1. / (1. + np.exp(-x))
+# set gpu growth
+def set_gpu_growth():
+  gpus = tf.config.list_physical_devices('GPU')
+  if gpus:
+    try:
+      # Currently, memory growth needs to be the same across GPUs
+      for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+        try:
+          import horovod.tensorflow as hvd
+          hvd.init()
+          tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
+        except:
+          print("No horovod")
+      logical_gpus = tf.config.list_logical_devices('GPU')
+      print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+      # Memory growth must be set before GPUs have been initialized
+      print(e)
 
-# def reweight(data, model, batch_size, verbose=True):
-#     f = expit(model.predict(data,batch_size=batch_size,verbose=verbose))
-#     weights = f / (1. - f)  # this is the crux of the reweight, approximates likelihood ratio
-#     weights = np.nan_to_num(weights[:,0],posinf=1)
-#     return weights
-
-# def loadData(filePath, treeName, vars, SystematicVariation=None):
-#     i = SystematicVariation
-#     data = []
-#     with uproot.open(filePath) as rFile:
-#         for var in vars:
-#             if SystematicVariation == None:
-#                 temp = np.array(rFile[f"{treeName}/{var}"])
-#             else:
-#                 temp = np.array([x[i] for x in np.array(rFile[f"{treeName}/{var}"])]) # reco level
-#             data.append(temp)
-#     # stack to form data
-#     data = np.stack(data,axis=1)
-#     return data
-
-# def loadBranchAndPad(branch, maxN, value=0):
-#     a = branch.array()
-#     a = ak.to_numpy(ak.fill_none(ak.pad_none(a, max(maxN,np.max(ak.num(a)))),value)) # must take maximum so that it pads to a uniform max and then cut down
-#     a = a[:,:maxN]
-#     return a
-
-# def loadDataParticles(filePath, treeName, branches, maxNPart, padValue = 0):
-#     # kinematics
-#     data = []
-#     with uproot.open(filePath) as rFile:
-#         tree = rFile[treeName]
-#         # print(tree.num_entries)
-#         # print(tree.keys())
-#         for key in branches:
-#             if key in tree.keys():
-#                 temp = loadBranchAndPad(tree[key], maxNPart, value=padValue) # pad to get to maxNPart
-#                 data.append(temp)
-#             else:
-#                 print(f"Attempted to add key not in tree: {key} for file {filePath}")
-#     # stack and return
-#     data = np.stack(data, axis=-1)
-#     return data
-
-# # copied from https://github.com/ViniciusMikuni/OmniLearn/blob/main/scripts/omnifold.py#L13C1-L20C32
-# # def weighted_binary_crossentropy(y_true, y_pred):
-# #     """Custom loss function with weighted binary cross-entropy."""
-
-# #     weights = tf.cast(tf.gather(y_true, [1], axis=1), tf.float32)  # Event weights
-# #     y_true = tf.cast(tf.gather(y_true, [0], axis=1), tf.float32)  # Actual labels
-
-# #     # Compute loss using TensorFlow's built-in function to handle numerical stability
-# #     loss = weights * tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true, logits=y_pred)
-# #     return tf.reduce_mean(loss)
-
-# mc_paths = {
-#     "ArchivedPYTHIA6" : {
-#         "path" : "/pscratch/sd/b/badea/aleph/data/alephMCRecoAfterCutPaths_1994.root",
-#         "tree" : "t" # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
-#     },
-#     "HERWIG7" : {
-#         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/HERWIG7/2_10_2024_LEP1MC/LEP-Matchbox-S1000-1_0_0.root",
-#         "tree" : "t"
-#     },
-#     "SHERPA" : {
-#         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/SHERPA/2_10_2024_LEP1MC/Sherpa_RNG100_0_0.root",
-#         "tree" : "t"
-#     },
-#     "PYTHIA8" : {
-#         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_withSphericity_v2.root",
-#         "tree" : "tgen"
-#     },
-#     "PYTHIA8_DIRE" : {
-#         "path": "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_DIRE.root",
-#         "tree" : "tgen"
-#     },
-#     "PYTHIA8_VINCIA" : {
-#         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_VINCIA.root",
-#         "tree" : "tgen"
-#     }
-# }
-
-# training settings
-test_size = 0.2
-lr = 5e-4
-epochs = 1
-batch_size = 512
-verbose = True
-weights_folder = "./"
-new_mc_name = "HERWIG7"
-model_name = os.path.join(weights_folder, f'Reweight_{new_mc_name}.weights.h5')
-print(model_name)
-
-# Event level distribution reweighting
-# # questions
-# # do we reweight before particle or event selections?
-# aleph_mc = loadData(
-#     filePath = "/global/homes/b/badea/aleph/data/ThrustDerivation/030725/alephMCRecoAfterCutPaths_1994_thrust.root", 
-#     treeName = "t", # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
-#     vars = ["Thrust"],
-#     SystematicVariation = 0 # no event selection, use all reco events
-# )
-# new_mc = loadData(
-#     filePath = new_mc_paths[new_mc_name]["path"], 
-#     treeName = new_mc_paths[new_mc_name]["tree"],
-#     vars = ["Thrust"],
-#     SystematicVariation = None # 
-# )
-# print(aleph_mc.shape, new_mc.shape)
-
-if __name__ == "__main__":
-    # Particle level distribution reweighting 
-    aleph_mc = loadDataParticles(
-        filePath = mc_paths["ArchivedPYTHIA6"]["path"],
-        treeName = mc_paths["ArchivedPYTHIA6"]["tree"],
-        branches = ["px", "py", "pz", "mass", "charge"],
-        maxNPart = 80
-    )
-    print(aleph_mc.shape)
-    new_mc = loadDataParticles(
-        filePath = mc_paths[new_mc_name]["path"], 
-        treeName = mc_paths[new_mc_name]["tree"],
-        branches = ["px", "py", "pz", "mass", "charge"],
-        maxNPart = 80
-    )
-    print(new_mc.shape)
-
-    # create labels
-    labels_aleph_mc = np.zeros(len(aleph_mc),dtype=np.float32)
-    labels_new_mc = np.ones(len(new_mc),dtype=np.float32)
-
-    # concatenate
-    data = np.concatenate((aleph_mc, new_mc))
-    # labels expected to be stack of [labels, weights]
-    labels = np.concatenate((labels_aleph_mc, labels_new_mc))
-    weights = np.ones(len(labels)) # unit weights for all for now
-    labels = np.stack([labels, weights], axis=1).astype(np.float32)
-    print(data.shape, labels.shape)
-
-    # Split into training (80%) and validation (20%) sets randomly
-    train_data, val_data, train_labels, val_labels = train_test_split(data, labels, test_size=test_size, stratify=labels)
-    print(train_data.shape, val_data.shape, train_labels.shape, val_labels.shape)
-
-    # Create TensorFlow datasets
-    train_dataset = tf.data.Dataset.from_tensor_slices((train_data, train_labels))
-    val_dataset = tf.data.Dataset.from_tensor_slices((val_data, val_labels))
-
-    # Batch and shuffle training data
-    train_dataset = train_dataset.shuffle(buffer_size=len(train_data)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-    val_dataset = val_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-    # exit()
-
-    # prepare MLP network
-    # ndim = train_data.shape[1]
-    # layer_sizes = [100, 100, 100]
-    # model = omnifold.MLP(ndim, layer_sizes = layer_sizes, activation="relu")
-
-    # prepare PET network
-    model = omnifold.PET(num_feat = train_data.shape[2], num_evt = 0, num_part = train_data.shape[1], num_heads = 1, num_transformer = 1, local = False, projection_dim = 64)
-
-    # training settings
-    opt = tf.keras.optimizers.Adam(learning_rate=lr)
-    model.compile(opt, loss = omnifold.net.weighted_binary_crossentropy)
-    callbacks = [
-        ReduceLROnPlateau(patience=1000, min_lr=1e-7, verbose=verbose, monitor="val_loss"),
-        EarlyStopping(patience=10, restore_best_weights=True,  monitor="val_loss"),
-        ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True),
-    ]
-
+# fitting function
+def doFit(model, train_dataset, val_dataset, epochs, verbose, callbacks, name):
+    
     hist =  model.fit(
         train_dataset,
         epochs = epochs,
@@ -192,9 +48,235 @@ if __name__ == "__main__":
 
     print(f"Last val loss {hist.history['val_loss'][0]}")
     print("INFO: Dumping training history ...")
-    with open(model_name.replace(".weights.h5",".pkl"),"wb") as f:
+    with open(name.replace(".weights.h5",".pkl"),"wb") as f:
         pickle.dump(hist.history, f)
 
-    weights = reweight(new_mc, model, batch_size=10000)
+    # weights = reweight(evaluate_data, model, batch_size=10000)
+    # print(weights.shape)
+    # np.save(name.replace(".weights.h5",".reweight.npy"), weights)    
+
+    return hist
+
+def doEvaluate(model, data, data_mean, data_std, name, batch_size=10000):
+
+    # copy data
+    temp = data.copy()
+
+    # standardize data
+    if data_mean is not None and data_std is not None:
+        standardized_data = (temp - data_mean) / data_std
+        temp = standardized_data
+
+    # expect padded values to be np.nan
+    temp = np.nan_to_num(temp, nan=0)
+    # get weights
+    weights = reweight(temp, model, batch_size=batch_size)
     print(weights.shape)
-    np.save(model_name.replace(".weights.h5",".reweight.npy"), weights)
+    np.save(name.replace(".weights.h5",".reweight.npy"), weights)
+
+def train(conf):
+
+    # SLURM sets CUDA_VISIBLE_DEVICES, so only the allocated GPU is visible to the task
+    set_gpu_growth()
+    gpu_id = os.environ.get('CUDA_VISIBLE_DEVICES')
+    print(f"Assigned GPU: {gpu_id}")
+
+    print(conf)
+
+    # update %j with actual job number
+    output_directory = conf["output_directory"]
+    try:
+        job_env = submitit.JobEnvironment()
+        job_id = str(job_env.job_id)
+    except:
+        job_id = "%08x" % random.randrange(16**8)
+        
+    output_directory = os.path.abspath(output_directory.replace("%j", job_id))
+    os.makedirs(output_directory, exist_ok=True)
+    print(output_directory)
+
+    # make weights directory
+    weights_folder_id = "%08x" % random.randrange(16**8)
+    weights_folder = os.path.abspath(os.path.join(output_directory, f"./model_weights_{weights_folder_id}"))
+    os.makedirs(weights_folder, exist_ok=True)
+
+    # Particle level distribution reweighting 
+    aleph_mc = loadDataParticles(
+        filePath = mc_paths["ArchivedPYTHIA6"]["path"],
+        treeName = mc_paths["ArchivedPYTHIA6"]["tree"],
+        branches = mc_paths["ArchivedPYTHIA6"]["branches"],
+        maxNPart = conf["maxNPart"],
+    )
+    aleph_mc = convert_PxPyPz_to_EtaPhiPmag(aleph_mc)
+    print(aleph_mc.shape)
+    new_mc = loadDataParticles(
+        filePath = mc_paths[conf["new_mc_name"]]["path"], 
+        treeName = mc_paths[conf["new_mc_name"]]["tree"],
+        branches = mc_paths[conf["new_mc_name"]]["branches"],
+        maxNPart = conf["maxNPart"],
+    )
+    new_mc = convert_PxPyPz_to_EtaPhiPmag(new_mc)
+    print(new_mc.shape)
+
+    # prepare datasets
+    train_dataset_step1, val_dataset_step1, data_mean_step1, data_std_step1 = create_train_val_datasets(data_0=aleph_mc, data_1=aleph_mc, test_size=conf["test_size"], batch_size=conf["batch_size"], normalize=True, standardize=True)
+    train_dataset_step2, val_dataset_step2, data_mean_step2, data_std_step2 = create_train_val_datasets(data_0=aleph_mc, data_1=new_mc, test_size=conf["test_size"], batch_size=conf["batch_size"], normalize=True, standardize=True)
+    
+    # save the standardization parameters
+    np.savez(
+        os.path.abspath(os.path.join(weights_folder, "dataset_standardization.npz")),
+        data_mean_step1 = data_mean_step1,
+        data_std_step1 = data_std_step1,
+        data_mean_step2 = data_mean_step2,
+        data_std_step2 = data_std_step2
+    )
+
+    # prepare PET network
+    model = omnifold.PET(
+        num_feat = aleph_mc.shape[2], 
+        num_evt = 0, 
+        num_part = conf["maxNPart"], 
+        num_heads = 1, 
+        num_transformer = 1, 
+        local = False,
+        projection_dim = 64
+    )
+
+    # training settings
+    opt = tf.keras.optimizers.Adam(learning_rate=conf["lr"])
+    model.compile(opt, loss = omnifold.net.weighted_binary_crossentropy)
+    callbacks = [
+        ReduceLROnPlateau(patience=1000, min_lr=1e-7, verbose=conf["verbose"], monitor="val_loss"),
+        EarlyStopping(patience=conf["early_stopping_patience"], restore_best_weights=True,  monitor="val_loss"),
+    ]
+
+    # Step 1 pretrain the model to get it to unity
+    model_name = os.path.join(weights_folder, f'Reweight_Step1.weights.h5')
+    callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
+    print("Running Step 1 (pre-train reweight aleph to aleph) with model name: ", model_name)
+    hist = doFit(model, train_dataset_step1, val_dataset_step1, conf["step1_epochs"], conf["verbose"], callbacks, model_name)
+    doEvaluate(model, aleph_mc, data_mean_step1, data_std_step1, model_name)
+
+    # Step 2 train the model for reweighting
+    model_name = os.path.join(weights_folder, f'Reweight_Step2.weights.h5')
+    callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
+    print("Running Step 2 (reweight aleph to new mc) with model name: ", model_name)
+    hist = doFit(model, train_dataset_step2, val_dataset_step2, conf["step2_epochs"], conf["verbose"], callbacks, model_name)
+    doEvaluate(model, aleph_mc, data_mean_step2, data_std_step2, model_name)
+
+
+if __name__ == "__main__":
+    
+    # set up command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--slurm", help="path to json file containing slurm configuration", default=None)
+    parser.add_argument("--njobs", help="number of jobs to actually launch. default is all", default=-1, type=int)
+    args = parser.parse_args()
+
+    # settings
+    top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/"
+    top_dir = os.path.abspath(os.path.join(top_dir, f'training-{"%08x" % random.randrange(16**8)}', "%j"))
+    conf = {
+        "output_directory": top_dir,
+        "test_size": 0.2,
+        "lr": 5e-4,
+        "batch_size": 2048,
+        "verbose": True,
+        "maxNPart": 80,
+        "new_mc_name": "PYTHIA8",
+        "step1_epochs" : 2,
+        "step2_epochs" : 200,
+        "early_stopping_patience" : 20,
+    }
+    confs = [conf]
+
+    # if no slurm config file provided then just launch job
+    if args.slurm == None:
+        print("No slurm config file provided. Running jobs locally.")
+        for iC, conf in enumerate(confs):
+            # only launch a single job
+            if args.njobs != -1 and (iC+1) > args.njobs:
+                continue
+            train(conf)
+    else:
+        # read in query
+        query_path = os.path.abspath(args.slurm)
+        with open(query_path) as f:
+            query = json.load(f)
+
+        # submission
+        executor = submitit.AutoExecutor(folder=top_dir)
+        executor.update_parameters(**query.get("slurm", {}))
+      
+        # loop over configurations
+        jobs = []
+        with executor.batch():
+            for iC, conf in enumerate(confs):
+                if args.njobs != -1 and (iC+1) > args.njobs:
+                    continue
+                job = executor.submit(train, conf) # **conf
+                jobs.append(job)
+
+    # # training settings
+    # test_size = 0.2
+    # lr = 5e-4
+    # batch_size = 512
+    # verbose = True
+    # top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/"
+    # weights_folder = os.path.join(top_dir, f'training-{"%08x" % random.randrange(16**8)}') # "./"
+    # os.makedirs(weights_folder, exist_ok=True)
+    # new_mc_name = "PYTHIA8"
+    # maxNPart = 80
+
+    # # Particle level distribution reweighting 
+    # aleph_mc = loadDataParticles(
+    #     filePath = mc_paths["ArchivedPYTHIA6"]["path"],
+    #     treeName = mc_paths["ArchivedPYTHIA6"]["tree"],
+    #     branches = mc_paths["ArchivedPYTHIA6"]["branches"],
+    #     maxNPart = maxNPart
+    # )
+    # print(aleph_mc.shape)
+    # new_mc = loadDataParticles(
+    #     filePath = mc_paths[new_mc_name]["path"], 
+    #     treeName = mc_paths[new_mc_name]["tree"],
+    #     branches = mc_paths[new_mc_name]["branches"],
+    #     maxNPart = maxNPart
+    # )
+    # print(new_mc.shape)
+
+    # # prepare datasets
+    # train_dataset_step1, val_dataset_step1 = create_train_val_datasets(data_0=aleph_mc, data_1=aleph_mc, test_size=test_size, batch_size=batch_size, normalize=True)
+    # train_dataset_step2, val_dataset_step2 = create_train_val_datasets(data_0=aleph_mc, data_1=new_mc, test_size=test_size, batch_size=batch_size, normalize=True)
+
+    # # prepare PET network
+    # model = omnifold.PET(
+    #     num_feat = aleph_mc.shape[2], 
+    #     num_evt = 0, 
+    #     num_part = maxNPart, 
+    #     num_heads = 1, 
+    #     num_transformer = 1, 
+    #     local = False,
+    #     projection_dim = 64
+    # )
+
+    # # training settings
+    # opt = tf.keras.optimizers.Adam(learning_rate=lr)
+    # model.compile(opt, loss = omnifold.net.weighted_binary_crossentropy)
+    # callbacks = [
+    #     ReduceLROnPlateau(patience=1000, min_lr=1e-7, verbose=verbose, monitor="val_loss"),
+    #     EarlyStopping(patience=10, restore_best_weights=True,  monitor="val_loss"),
+    # ]
+
+    # # Step 1 pretrain the model to get it to unity
+    # model_name = os.path.join(weights_folder, f'Reweight_Step1.weights.h5')
+    # callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
+    # print("Running Step 1 (pre-train reweight aleph to aleph) with model name: ", model_name)
+    # epochs = 2
+    # hist = doFitAndEvaluate(model, train_dataset_step1, val_dataset_step1, epochs, verbose, callbacks, model_name, aleph_mc) 
+
+    # # Step 2 train the model for reweighting
+    # model_name = os.path.join(weights_folder, f'Reweight_Step2.weights.h5')
+    # callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
+    # print("Running Step 2 (reweight aleph to new mc) with model name: ", model_name)
+    # epochs = 50
+    # hist = doFitAndEvaluate(model, train_dataset_step2, val_dataset_step2, epochs, verbose, callbacks, model_name, aleph_mc)

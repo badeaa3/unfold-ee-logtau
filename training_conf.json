@@ -1,6 +1,6 @@
 {
     "f_data": "/global/homes/b/badea/aleph/data/ThrustDerivation/030725/LEP1Data1994_recons_aftercut-MERGED_thrust.root",
-    "f_mc": "/global/homes/b/badea/aleph/data/ThrustDerivation/030725/alephMCRecoAfterCutPaths_1994_thrust.root",
+    "f_mc": "/pscratch/sd/b/badea/aleph/data/ThrustDerivation/042825/alephMCRecoAfterCutPaths_1994_thrust_CleanNeutralAndConversion.root",
     "SystematicVariation": 1,
     "output_directory": "./",
     "niter": 5,
