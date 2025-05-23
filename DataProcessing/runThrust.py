@@ -13,12 +13,16 @@ def main():
     # user options
     ops = options()
 
+    # make output file name
+    outFile = os.path.join(ops.outDir, os.path.basename(ops.inFile).replace(".root", "_thrust.root"))
+    print(outFile)
+    
     # make confs
     confs = []
     for thisdiv in range(ops.ndivs):
         confs.append({
                 "i" : ops.inFile,
-                "o" : ops.outFile.replace(".root", f"_{thisdiv}.root"),
+                "o" : outFile.replace(".root", f"_{thisdiv}.root"),
                 "divide" : ops.ndivs,
                 "thisdiv" : thisdiv,
                 "dryrun" : ops.dryrun,
@@ -33,7 +37,7 @@ def main():
 
     # hadd
     jobs = " ".join([d["o"] for d in confs])
-    cmds = [f"hadd -f {ops.outFile} {jobs}", f"rm -rf {jobs}"]
+    cmds = [f"hadd -f {outFile} {jobs}", f"rm -rf {jobs}"]
     for cmd in cmds: 
         print("\n" + cmd)
     if not ops.dryrun:
@@ -43,7 +47,8 @@ def main():
 def options():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--inFile", help="Input file", required=True)
-    parser.add_argument("-o", "--outFile", help="Output ROOT file", required=True)
+    # parser.add_argument("-o", "--outFile", help="Output ROOT file", required=True)
+    parser.add_argument("-o", "--outDir", default="./", help="Output directory")
     parser.add_argument("-n", "--ndivs", help="Number of divisions to partition the input file into", default=1, type=int)
     parser.add_argument("-j", "--ncpu", help="Number of cores to use for multiprocessing", default=1, type=int)
     parser.add_argument("--dryrun", help="Do not execute any commands", action="store_true")

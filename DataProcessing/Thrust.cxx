@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
   // aleph mc file
   if (inFileName.find("LEP1Data") == std::string::npos) {
     inFileType = "ALEPHMC";
-    treeNames = {"t", "tgen", "tgenBefore"};
+    treeNames = {"t"}; // , "tgen", "tgenBefore"};
   }
   // pythia8 mc file
   if (inFileName.find("PYTHIA8") != std::string::npos) {
@@ -282,7 +282,6 @@ int main(int argc, char* argv[]) {
 
     // load input tree
     bool genTree = tree == "tgen" || tree == "tgenBefore";
-    genTree = genTree || inFileType == "HERWIG" || inFileType == "SHERPA";
     std::unique_ptr<TTree> t ((TTree*) f->Get(tree.c_str()));
     t->SetBranchAddress("uniqueID", &uniqueID);
     t->SetBranchAddress("nParticle", &nParticle);
@@ -375,6 +374,7 @@ int main(int argc, char* argv[]) {
       hists[{iV, "cosThetaSph"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "cosThetaSph").c_str(), ";cos#theta_{Sph};Entries", 100, -1, 1);
       hists[{iV, "sphericity"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
       hists[{iV, "thrust"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "thrust").c_str(), ";Thrust;Entries", 100, 0.5, 1);
+      hists[{iV, "logtau"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "logtau").c_str(), ";log(#tau);Entries", 100, -10, 0);
       hists[{iV, "missP"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
       hists[{iV, "evis"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "evis").c_str(), ";E_{Vis} [GeV];Entries", 200, 0, 200);
       hists[{iV, "cosThetaThrust"}] = new TH1D( (tree + "_hist_sel" + std::to_string(iV) + "_" + "cosThetaThrust").c_str(), ";cos#theta_{Thr};Entries", 100, -1, 1);
@@ -446,14 +446,98 @@ int main(int argc, char* argv[]) {
         // loop over particles
         for (int iP = 0; iP < nParticle; iP++) {
 
+	  // debug printing
           if (debug) std::cout << TString::Format("iP %d, pwflag %d, theta %f, pt %f, d0 %f, z0 %f, ntpc %d, charge %i", iP, pwflag[iP], theta[iP], pt[iP], d0[iP], z0[iP], ntpc[iP], charge[iP]) << std::endl;
 
           // compute the particle energy
           float energy = TMath::Sqrt(pmag[iP] * pmag[iP] + mass[iP] * mass[iP]);
-    
-          // fill histogram for all particles on first pass
-          if(iV == 0 && pwflag[iP] >= 0 && pwflag[iP] <= 5){
-            hists[{pwflag[iP], "cosTheta"}]->Fill(cos(theta[iP]));
+
+	  // determine if good generator level
+	  bool goodGenPart = true;
+	  // neutral cleaning around phi = 0 for photon radiation along beam pipe
+	  if (genTree && inFileType == "ALEPHMC" && charge[iP] == 0 && std::abs(phi[iP]) <= 0.001 && pt[iP] > 0.00099 && pt[iP] < 0.001009){
+              goodGenPart = false;
+	  }
+
+	  // determine if conversion electron
+	  bool isConversionElectron = true;
+	  //both electrons
+	  if( pwflag[iP] != 2 ) isConversionElectron = false;
+	  if( pwflag[iP-1] != 2 ) isConversionElectron = false;
+	  //opposite charge required
+	  if( charge[iP] != -(charge[iP-1])) isConversionElectron = false;
+	  //dtheta and dphi matching
+	  float conversionDPhi = 0.05;
+	  float conversionDTheta = 0.05;
+	  if( TMath::Abs(theta[iP] - theta[iP-1]) > conversionDTheta) isConversionElectron = false;
+	  if( TMath::ACos(TMath::Cos(phi[iP] - phi[iP-1])) > conversionDPhi) isConversionElectron = false;
+
+	  // apply reco level selections
+	  bool passChgTrkSel = false;
+	  bool passNeuPartSel = false;
+	  if (!genTree){
+
+	    // charged particle selections
+	    passChgTrkSel =
+	      (pwflag[iP] >= 0 && pwflag[iP] <= 2)
+	      && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["chargedTracksAbsCosThCut"])
+	      && (pt[iP] >= selections.at(iV)["ptCut"])
+	      && (TMath::Abs(d0[iP]) <= selections.at(iV)["d0Cut"])
+	      && (TMath::Abs(z0[iP]) <= selections.at(iV)["z0Cut"])
+	      && (ntpc[iP] >= selections.at(iV)["nTPCcut"]);
+
+	    // neutral particle selections
+	    passNeuPartSel =
+	      (pwflag[iP] == 4 || pwflag[iP] == 5)
+	      && (energy >= selections.at(iV)["ECut"])
+	      && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["neutralTracksAbsCosThCut"]);
+      
+	  }
+
+	  // fill and save
+	  bool saveParticle = false;
+	  if(goodGenPart) saveParticle = true;
+	  if(isConversionElectron){
+	  // if conversion electron then don't save particle and remove previous particle also
+	    saveParticle = false;
+	    // remove previous particle
+	    selectedParts.at(iV) -= 1;
+            selectedPx.at(iV).pop_back();
+            selectedPy.at(iV).pop_back();
+            selectedPz.at(iV).pop_back();
+            selectedPwflag.at(iV).pop_back();
+            // conversion electrons
+            conversionElectronTheta.push_back(theta[iP]);
+            conversionElectronPhi.push_back(phi[iP]);
+            conversionElectronPt.push_back(pt[iP]);
+	  }
+	  if(passChgTrkSel && selections.at(iV)["keepChargedTracks"]){
+	    if (debug) std::cout << "Passed charged track selection" << std::endl;
+	    saveParticle = true;
+            TotalTrkEnergy.at(iV) += energy;
+            EVis.at(iV) += energy;
+            NTrk.at(iV) += 1;
+	  }
+	  if(passNeuPartSel && selections.at(iV)["keepNeutralTracks"]){
+	    if (debug) std::cout << "Passed neutral track selection" << std::endl;
+	    saveParticle = true;
+            EVis.at(iV) += energy;
+            Neu.at(iV) += 1;
+	  }
+
+          // save the particle
+          if (saveParticle){
+	    // save for event shape variables
+	    selectedParts.at(iV) += 1;
+            selectedPx.at(iV).push_back(px[iP]);
+            selectedPy.at(iV).push_back(py[iP]);
+            selectedPz.at(iV).push_back(pz[iP]);
+            selectedPwflag.at(iV).push_back(pwflag[iP]);
+	    // fill particle kinematic histograms
+	    if(!genTree && iV != 0) continue;
+	    if(inFileType == "PYTHIA8") continue; // no pwflag for pythia8, only pdgid
+	    if(!(pwflag[iP] >= 0 && pwflag[iP] <= 5)) continue; // only save pwflag 0-5
+	    hists[{pwflag[iP], "cosTheta"}]->Fill(cos(theta[iP]));
             hists[{pwflag[iP], "phi"}]->Fill(phi[iP]);
             hists[{pwflag[iP], "pt"}]->Fill(pt[iP]);
             hists[{pwflag[iP], "ntpc"}]->Fill(ntpc[iP]);
@@ -462,127 +546,22 @@ int main(int argc, char* argv[]) {
             hists[{pwflag[iP], "pmag"}]->Fill(pmag[iP]);
             hists[{pwflag[iP], "mass"}]->Fill(mass[iP]);
             hists[{pwflag[iP], "energy"}]->Fill(energy);
-          }
-          
-          // always keep generator level particle
-          if (genTree){
+          }	  
 
-	    // flag to save the particle or not
-	    bool saveParticle = true;
-	    
-   	    // // clean away neutrals with phi=0 and fixed pt of 0.001 (arbitrary select [0.00099, 0.001009] since exact comparison is an issue with precision error)
-	    if (inFileType == "ALEPHMC" && charge[iP] == 0 && std::abs(phi[iP]) <= 0.001 && pt[iP] > 0.00099 && pt[iP] < 0.001009){
-	      saveParticle = false;
-	    }
-	    
-	    // // clean away electrons from conversion photons
-	    if (inFileType == "ALEPHMC" && iP > 0){
-
-	      // check if conversion electron
-	      bool isConversionElectron = true;
-	      //both electrons
-	      if( pwflag[iP] != 2 ) isConversionElectron = false;
-	      if( pwflag[iP-1] != 2 ) isConversionElectron = false;
-	      //opposite charge required 
-	      if( charge[iP] != -(charge[iP-1])) isConversionElectron = false;
-	      //dtheta and dphi matching
-	      float conversionDPhi = 0.05;
-	      float conversionDTheta = 0.05;
-	      if( TMath::Abs(theta[iP] - theta[iP-1]) > conversionDTheta) isConversionElectron = false;
-	      if( TMath::ACos(TMath::Cos(phi[iP] - phi[iP-1])) > conversionDPhi) isConversionElectron = false;
-
-	      // if conversion electron then don't save particle and remove previous particle also
-	      if (isConversionElectron){
-		saveParticle = false;
-		selectedParts.at(iV) -= 1;
-		selectedPx.at(iV).pop_back();
-		selectedPy.at(iV).pop_back();
-		selectedPz.at(iV).pop_back();
-		selectedPwflag.at(iV).pop_back();
-
-		// std::cout << "Conversion electron " << theta[iP] << std::endl;
-		conversionElectronTheta.push_back(theta[iP]);
-		conversionElectronPhi.push_back(phi[iP]);
-		conversionElectronPt.push_back(pt[iP]);
-		
-	      }
-	    }
-
-	    // save the particle
-	    if (saveParticle){
-	      selectedParts.at(iV) += 1;
-	      selectedPx.at(iV).push_back(px[iP]);
-	      selectedPy.at(iV).push_back(py[iP]);
-	      selectedPz.at(iV).push_back(pz[iP]);
-	      selectedPwflag.at(iV).push_back(pwflag[iP]);
-	    }
-
-	    // skip rest of analysis section
-            continue;
-          } 
-
-          // charged track selection
-          bool passChgTrkSel =
-            (pwflag[iP] >= 0 && pwflag[iP] <= 2)
-            && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["chargedTracksAbsCosThCut"])
-            && (pt[iP] >= selections.at(iV)["ptCut"])
-            && (TMath::Abs(d0[iP]) <= selections.at(iV)["d0Cut"])
-            && (TMath::Abs(z0[iP]) <= selections.at(iV)["z0Cut"])
-            && (ntpc[iP] >= selections.at(iV)["nTPCcut"]);
-          
-          // populate
-          if (passChgTrkSel) {
-            if (debug) std::cout << "Passed charged track selection" << std::endl;
-            // increment values
-            TotalTrkEnergy.at(iV) += energy;
-	          EVis.at(iV) += energy;
-            NTrk.at(iV) += 1;
-            // add to input list for sphericity and thrust
-            if(selections.at(iV)["keepChargedTracks"]){
-              selectedParts.at(iV) += 1;
-              selectedPx.at(iV).push_back(px[iP]);
-              selectedPy.at(iV).push_back(py[iP]);
-              selectedPz.at(iV).push_back(pz[iP]);
-              selectedPwflag.at(iV).push_back(pwflag[iP]);
-            }
-          }
-
-          // neutral particle selection
-          bool passNeuPartSel = 
-            (pwflag[iP] == 4 || pwflag[iP] == 5)
-	          && (energy >= selections.at(iV)["ECut"])
-            && (TMath::Abs(cos(theta[iP])) <= selections.at(iV)["neutralTracksAbsCosThCut"]);
-          
-          // populate
-          if (passNeuPartSel) {
-            if (debug) std::cout << "Passed neutral track selection" << std::endl;
-            // increment values
-            EVis.at(iV) += energy;
-            Neu.at(iV) += 1;
-            // add to input list for sphericity and thrust
-            if(selections.at(iV)["keepNeutralTracks"]){
-              selectedParts.at(iV) += 1;
-              selectedPx.at(iV).push_back(px[iP]);
-              selectedPy.at(iV).push_back(py[iP]);
-              selectedPz.at(iV).push_back(pz[iP]);
-              selectedPwflag.at(iV).push_back(pwflag[iP]);
-            }
-          }
-
-        }
+	}
 
         // sphericity
         spher = std::make_unique<Sphericity>(Sphericity(selectedParts.at(iV), selectedPx.at(iV).data(), selectedPy.at(iV).data(), selectedPz.at(iV).data(), selectedPwflag.at(iV).data(), false));
         STheta.push_back(spher->sphericityAxis().Theta());
-	      Sph.push_back(spher->sphericity());
+	Sph.push_back(spher->sphericity());
 
         // calculate the missing momentum vector
-	      TVector3 met = TVector3(0, 0, 0);
-	      for (int t = 0; t < selectedParts.at(iV); t++) {
-	        met += (TVector3(selectedPx.at(iV).at(t), selectedPy.at(iV).at(t), selectedPz.at(iV).at(t)));
-	      }
-	      met = -met;
-	      MissP.push_back(met.Mag());
+	TVector3 met = TVector3(0, 0, 0);
+	for (int t = 0; t < selectedParts.at(iV); t++) {
+	  met += (TVector3(selectedPx.at(iV).at(t), selectedPy.at(iV).at(t), selectedPz.at(iV).at(t)));
+	}
+	met = -met;
+	MissP.push_back(met.Mag());
 
         // include missing momentum vector in thrust calculation
         if (selections.at(iV)["doMET"]) {
@@ -602,27 +581,31 @@ int main(int argc, char* argv[]) {
         // compute event selection passes
         bool eventSelection =
         passesNTupleAfterCut == 1
-        && (TotalTrkEnergy.at(iV) >= selections.at(iV)["TotalTrkEnergyCut"])
-              && (TMath::Abs(TMath::Cos(STheta.at(iV))) <= selections.at(iV)["AbsCosSThetaCut"])
-              && (NTrk.at(iV) >= selections.at(iV)["NTrkCut"])
-              && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"])
-              && (EVis.at(iV) >= selections.at(iV)["EVisCut"])
-              && (MissP.at(iV) < selections.at(iV)["MissPCut"]);
+	  && (TotalTrkEnergy.at(iV) >= selections.at(iV)["TotalTrkEnergyCut"])
+	  && (TMath::Abs(TMath::Cos(STheta.at(iV))) <= selections.at(iV)["AbsCosSThetaCut"])
+	  && (NTrk.at(iV) >= selections.at(iV)["NTrkCut"])
+	  && ((NTrk.at(iV) + Neu.at(iV)) >= selections.at(iV)["NeuNchCut"])
+	  && (EVis.at(iV) >= selections.at(iV)["EVisCut"])
+	  && (MissP.at(iV) < selections.at(iV)["MissPCut"]);
 
-      // append and fill histograms if selection passed
-      passEventSelection.push_back(eventSelection);
-      if(eventSelection){
-        hists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
-        hists[{iV, "nneu"}]->Fill(Neu.at(iV));
-        hists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
-        hists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
-        hists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
-        hists[{iV, "sphericity"}]->Fill(Sph.at(iV));
-        hists[{iV, "thrust"}]->Fill(Thrust.at(iV));
-        hists[{iV, "missP"}]->Fill(MissP.at(iV));
-        hists[{iV, "evis"}]->Fill(EVis.at(iV));
-        hists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
-      }
+	// gen always passes event selection
+	eventSelection = eventSelection || genTree;
+	
+	// append and fill histograms if selection passed
+	passEventSelection.push_back(eventSelection);
+	if(eventSelection){
+	  hists[{iV, "ntrk"}]->Fill(NTrk.at(iV));
+	  hists[{iV, "nneu"}]->Fill(Neu.at(iV));
+	  hists[{iV, "ntrkPlusNeu"}]->Fill(NTrk.at(iV) + Neu.at(iV));
+	  hists[{iV, "eCh"}]->Fill(TotalTrkEnergy.at(iV));
+	  hists[{iV, "cosThetaSph"}]->Fill(TMath::Cos(STheta.at(iV)));
+	  hists[{iV, "sphericity"}]->Fill(Sph.at(iV));
+	  hists[{iV, "thrust"}]->Fill(Thrust.at(iV));
+	  hists[{iV, "logtau"}]->Fill(TMath::Log(1-Thrust.at(iV)));
+	  hists[{iV, "missP"}]->Fill(MissP.at(iV));
+	  hists[{iV, "evis"}]->Fill(EVis.at(iV));
+	  hists[{iV, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta.at(iV)));
+	}
 
       }
 
