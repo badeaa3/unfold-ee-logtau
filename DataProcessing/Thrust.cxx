@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
   // aleph mc file
   if (inFileName.find("LEP1Data") == std::string::npos) {
     inFileType = "ALEPHMC";
-    treeNames = {"t"}; // , "tgen", "tgenBefore"};
+    treeNames = {"t", "tgen", "tgenBefore"};
   }
   // pythia8 mc file
   if (inFileName.find("PYTHIA8") != std::string::npos) {
@@ -455,6 +455,7 @@ int main(int argc, char* argv[]) {
 	  // determine if good generator level
 	  bool goodGenPart = true;
 	  // neutral cleaning around phi = 0 for photon radiation along beam pipe
+	  if (!genTree) goodGenPart = false;
 	  if (genTree && inFileType == "ALEPHMC" && charge[iP] == 0 && std::abs(phi[iP]) <= 0.001 && pt[iP] > 0.00099 && pt[iP] < 0.001009){
               goodGenPart = false;
 	  }
