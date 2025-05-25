@@ -52,9 +52,9 @@ ConfigParams parseConfigString(const std::string& configStr) {
       // Convert value to float for selection parameters
       float value;
       if (valueStr == "true") {
-        value = 1.0;
+        value = true;
       } else if (valueStr == "false") {
-        value = 0.0;
+        value = false;
       } else {
         value = std::stof(valueStr);
       }
@@ -176,9 +176,9 @@ int main(int argc, char* argv[]) {
   float s_NTrkPlusNeu = selMap["NeuNchCut"];
   float s_EVis = selMap["EVisCut"];
   float s_MissP = selMap["MissPCut"];
-  bool s_ThrCh = selMap["keepChargedTracks"] > 0.5;
-  bool s_ThrNeu = selMap["keepNeutralTracks"] > 0.5;
-  bool s_ThrMissP = selMap["doMET"] > 0.5;
+  bool s_ThrCh = selMap["keepChargedTracks"];
+  bool s_ThrNeu = selMap["keepNeutralTracks"];
+  bool s_ThrMissP = selMap["doMET"];
   
   // Set branches
   varDefs->Branch("nTPC", &s_nTPC);
@@ -410,14 +410,14 @@ int main(int argc, char* argv[]) {
           conversionElectronPhi.push_back(phi[iP]);
           conversionElectronPt.push_back(pt[iP]);
         }
-        if(passChgTrkSel && selMap["keepChargedTracks"] > 0.5){
+        if(passChgTrkSel && selMap["keepChargedTracks"]){
           if (debug) std::cout << "Passed charged track selection" << std::endl;
           saveParticle = true;
           TotalTrkEnergy += energy;
           EVis += energy;
           NTrk += 1;
         }
-        if(passNeuPartSel && selMap["keepNeutralTracks"] > 0.5){
+        if(passNeuPartSel && selMap["keepNeutralTracks"]){
           if (debug) std::cout << "Passed neutral track selection" << std::endl;
           saveParticle = true;
           EVis += energy;

@@ -202,10 +202,10 @@ def main():
     # Get file configuration and create variations
     file_config = get_file_config(ops.inFile)
     variations = create_selection_variations()
-    
+
     # Create job configurations
     job_configs = create_job_configs(ops, file_config, variations)
-    
+
     print(f"Running {len(variations)} selection variations with {ops.ndivs} divisions each = {len(job_configs)} total jobs")
     
     # Execute jobs
