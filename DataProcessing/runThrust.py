@@ -69,7 +69,7 @@ def get_file_config(input_file):
     filename = os.path.basename(input_file)
     
     for file_type, config in FILE_CONFIGS.items():
-        if file_type in filename:
+        if file_type.lower() in filename.lower():
             return config.copy()
     
     # raise error if no known file type is found
