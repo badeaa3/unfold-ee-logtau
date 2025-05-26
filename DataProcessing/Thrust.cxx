@@ -8,6 +8,7 @@ Analysis: MITHIG-MOD-20-001 Omnifold applied to ALEPH data
 #include "TTree.h"
 #include "TFile.h"
 #include "TVector3.h"
+
 #include "TMath.h"
 #include "TString.h"
 #include "TH1D.h"
@@ -286,17 +287,17 @@ int main(int argc, char* argv[]) {
     }
 
     // create event level histograms for single selection
-    hists[{0, "ntrk"}] = new TH1D( (tree + "_hist_sel_ntrk").c_str(), ";N_{Trk};Entries", 61, -0.5, 60.5);
-    hists[{0, "nneu"}] = new TH1D( (tree + "_hist_sel_nneu").c_str(), ";N_{Neu};Entries", 51, -0.5, 50.5);
-    hists[{0, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_sel_ntrkPlusNeu").c_str(), ";N_{Trk+Neu};Entries", 81, -0.5, 80.5);
-    hists[{0, "eCh"}] = new TH1D( (tree + "_hist_sel_eCh").c_str(), ";E_{Ch} [GeV];Entries", 200, 0, 200);
-    hists[{0, "cosThetaSph"}] = new TH1D( (tree + "_hist_sel_cosThetaSph").c_str(), ";cos#theta_{Sph};Entries", 100, -1, 1);
-    hists[{0, "sphericity"}] = new TH1D( (tree + "_hist_sel_sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
-    hists[{0, "thrust"}] = new TH1D( (tree + "_hist_sel_thrust").c_str(), ";Thrust;Entries", 100, 0.5, 1);
-    hists[{0, "logtau"}] = new TH1D( (tree + "_hist_sel_logtau").c_str(), ";log(#tau);Entries", 100, -10, 0);
-    hists[{0, "missP"}] = new TH1D( (tree + "_hist_sel_missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
-    hists[{0, "evis"}] = new TH1D( (tree + "_hist_sel_evis").c_str(), ";E_{Vis} [GeV];Entries", 200, 0, 200);
-    hists[{0, "cosThetaThrust"}] = new TH1D( (tree + "_hist_sel_cosThetaThrust").c_str(), ";cos#theta_{Thr};Entries", 100, -1, 1);
+    hists[{0, "ntrk"}] = new TH1D( (tree + "_hist_ntrk").c_str(), ";N_{Trk};Entries", 61, -0.5, 60.5);
+    hists[{0, "nneu"}] = new TH1D( (tree + "_hist_nneu").c_str(), ";N_{Neu};Entries", 51, -0.5, 50.5);
+    hists[{0, "ntrkPlusNeu"}] = new TH1D( (tree + "_hist_ntrkPlusNeu").c_str(), ";N_{Trk+Neu};Entries", 81, -0.5, 80.5);
+    hists[{0, "eCh"}] = new TH1D( (tree + "_hist_eCh").c_str(), ";E_{Ch} [GeV];Entries", 200, 0, 200);
+    hists[{0, "cosThetaSph"}] = new TH1D( (tree + "_hist_cosThetaSph").c_str(), ";cos#theta_{Sph};Entries", 100, -1, 1);
+    hists[{0, "sphericity"}] = new TH1D( (tree + "_hist_sphericity").c_str(), ";Sphericity;Entries", 100, 0, 1);
+    hists[{0, "thrust"}] = new TH1D( (tree + "_hist_thrust").c_str(), ";Thrust;Entries", 100, 0.5, 1);
+    hists[{0, "logtau"}] = new TH1D( (tree + "_hist_logtau").c_str(), ";log(#tau);Entries", 100, -10, 0);
+    hists[{0, "missP"}] = new TH1D( (tree + "_hist_missP").c_str(), ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
+    hists[{0, "evis"}] = new TH1D( (tree + "_hist_evis").c_str(), ";E_{Vis} [GeV];Entries", 200, 0, 200);
+    hists[{0, "cosThetaThrust"}] = new TH1D( (tree + "_hist_cosThetaThrust").c_str(), ";cos#theta_{Thr};Entries", 100, -1, 1);
 
     // interpret divide and thisdiv to event range
     int nEvents = t->GetEntries();
@@ -517,7 +518,7 @@ int main(int argc, char* argv[]) {
     for (auto &entry : hists) {
         entry.second->Write();
     }
-    
+ 
     std::cout << "\n" << std::endl;
 
   }

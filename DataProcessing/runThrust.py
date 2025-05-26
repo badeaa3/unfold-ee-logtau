@@ -139,7 +139,11 @@ def create_job_configs(ops, file_config, variations):
             combined_config = {}
             combined_config.update(file_config)
             combined_config.update(selection)
-            
+
+            # if ALEPHMC then only run t, tgen, tgenBefore for nominal. Otherwise just run reco beacuse gen doesn't change
+            if file_config['inFileType'] == 'ALEPHMC' and sel_name != "nominal":
+                combined_config["treeNames"] = ['t']
+                
             configs.append({
                 "input_file": ops.inFile,
                 "output_file": outfile,
