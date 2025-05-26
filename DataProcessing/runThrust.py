@@ -7,7 +7,6 @@ Purpose: Wrapping job launcher for Thrust.cxx to multiprocess selection variatio
 import os
 import argparse
 import multiprocessing as mp
-from pathlib import Path
 
 # Global configuration for different file types
 FILE_CONFIGS = {
@@ -67,14 +66,14 @@ def config_to_string(config):
 
 def get_file_config(input_file):
     """Determine file type and tree names based on input file."""
-    filename = Path(input_file).name
+    filename = os.path.basename(input_file)
     
     for file_type, config in FILE_CONFIGS.items():
         if file_type in filename:
             return config.copy()
     
-    # Default to ALEPHMC if no match found
-    return FILE_CONFIGS['ALEPHMC'].copy()
+    # raise error if no known file type is found
+    raise ValueError(f"Unknown file type for '{filename}'. Supported types: {list(FILE_CONFIGS.keys())}")
 
 def create_selection_variations():
     """Create all selection variations to run."""
@@ -122,41 +121,82 @@ def create_selection_variations():
     return variations
 
 
-def create_job_configs(ops, file_config, variations):
-    """Create job configurations for all variations and divisions."""
-    base_outfile = Path(ops.outDir) / Path(ops.inFile).stem
-    base_outfile = str(base_outfile) + "_thrust"
+def run_selection_variation(ops, file_config, sel_name, selection):
+    """Run all divisions for a single selection variation across all trees and merge results."""
+    tree_names = file_config['treeNames']
     
-    configs = []
-    for sel_name, selection in variations:
-        for division in range(ops.ndivs):
-            # Create output filename
-            if ops.ndivs > 1:
-                outfile = f"{base_outfile}_{sel_name}_{division}.root"
-            else:
-                outfile = f"{base_outfile}_{sel_name}.root"
+    # Process each tree separately
+    for tree_name in tree_names:
+        
+        # Filter: generator-level trees (tgen, tgenBefore) should only run with no_event_sel
+        if tree_name in ['tgen', 'tgenBefore'] and sel_name != 'no_event_sel':
+            print(f"\n[{sel_name}] Skipping tree: {tree_name} (generator-level trees only run with no_event_sel)")
+            continue
             
-            # Combine file config with selection parameters
-            combined_config = {}
-            combined_config.update(file_config)
-            combined_config.update(selection)
+        print(f"\n[{sel_name}] Processing tree: {tree_name}")
+        run_tree_jobs(ops, file_config, sel_name, selection, tree_name)
 
-            # if ALEPHMC then only run t, tgen, tgenBefore for nominal. Otherwise just run reco beacuse gen doesn't change
-            if file_config['inFileType'] == 'ALEPHMC' and sel_name != "nominal":
-                combined_config["treeNames"] = ['t']
-                
-            configs.append({
-                "input_file": ops.inFile,
-                "output_file": outfile,
-                "config_string": config_to_string(combined_config),
-                "selection_name": sel_name,
-                "total_divisions": ops.ndivs,
-                "current_division": division,
-                "dry_run": ops.dryrun,
-                "debug": ops.debug
-            })
+def run_tree_jobs(ops, file_config, sel_name, selection, tree_name):
+    """Run all divisions for a single tree within a selection variation and merge results."""
+    base_outfile = os.path.join(ops.outDir, os.path.splitext(os.path.basename(ops.inFile))[0])
+    base_outfile = base_outfile + "_thrust"
     
-    return configs
+    # Create job configurations for this tree
+    job_configs = []
+    for division in range(ops.ndivs):
+        # Create output filename with tree name
+        if ops.ndivs > 1:
+            outfile = f"{base_outfile}_{sel_name}_{tree_name}_{division}.root"
+        else:
+            outfile = f"{base_outfile}_{sel_name}_{tree_name}.root"
+        
+        # Create config for single tree (not a list)
+        tree_config = {
+            'inFileType': file_config['inFileType'],
+            'treeNames': tree_name  # Single tree name, not a list
+        }
+        
+        # Combine tree config with selection parameters
+        combined_config = {}
+        combined_config.update(tree_config)
+        combined_config.update(selection)
+        
+        job_configs.append({
+            "input_file": ops.inFile,
+            "output_file": outfile,
+            "config_string": config_to_string(combined_config),
+            "selection_name": f"{sel_name}_{tree_name}",
+            "total_divisions": ops.ndivs,
+            "current_division": division,
+            "dry_run": ops.dryrun,
+            "debug": ops.debug
+        })
+    
+    print(f"  Running {ops.ndivs} divisions for tree {tree_name}...")
+    
+    # Execute all divisions for this tree using multiprocessing
+    if len(job_configs) == 1:
+        run_thrust_job(job_configs[0])
+    else:
+        with mp.Pool(ops.ncpu) as pool:
+            results = pool.map(run_thrust_job, job_configs)
+    
+    # Merge divided files if necessary
+    if ops.ndivs > 1:
+        final_outfile = f"{base_outfile}_{sel_name}_{tree_name}.root"
+        division_files = [f"{base_outfile}_{sel_name}_{tree_name}_{div}.root" for div in range(ops.ndivs)]
+        
+        # Merge files
+        hadd_cmd = f"hadd -f {final_outfile} {' '.join(division_files)}"
+        cleanup_cmd = f"rm -f {' '.join(division_files)}"
+        
+        print(f"  [{tree_name}] Merging files...")
+        for cmd in [hadd_cmd, cleanup_cmd]:
+            print(f"    {cmd}")
+            if not ops.dryrun:
+                os.system(cmd)
+    
+    print(f"  [{tree_name}] Completed!")
 
 def run_thrust_job(job_config):
     """Execute a single thrust job."""
@@ -179,62 +219,6 @@ def run_thrust_job(job_config):
         return os.system(cmd)
     return 0
 
-def run_selection_variation(ops, file_config, sel_name, selection):
-    """Run all divisions for a single selection variation and merge results."""
-    base_outfile = Path(ops.outDir) / Path(ops.inFile).stem
-    base_outfile = str(base_outfile) + "_thrust"
-    
-    # Create job configurations for this variation
-    job_configs = []
-    for division in range(ops.ndivs):
-        # Create output filename
-        if ops.ndivs > 1:
-            outfile = f"{base_outfile}_{sel_name}_{division}.root"
-        else:
-            outfile = f"{base_outfile}_{sel_name}.root"
-        
-        # Combine file config with selection parameters
-        combined_config = {}
-        combined_config.update(file_config)
-        combined_config.update(selection)
-        
-        job_configs.append({
-            "input_file": ops.inFile,
-            "output_file": outfile,
-            "config_string": config_to_string(combined_config),
-            "selection_name": sel_name,
-            "total_divisions": ops.ndivs,
-            "current_division": division,
-            "dry_run": ops.dryrun,
-            "debug": ops.debug
-        })
-    
-    print(f"\n[{sel_name}] Running {ops.ndivs} divisions...")
-    
-    # Execute all divisions for this variation
-    if len(job_configs) == 1:
-        run_thrust_job(job_configs[0])
-    else:
-        with mp.Pool(ops.ncpu) as pool:
-            results = pool.map(run_thrust_job, job_configs)
-    
-    # Merge divided files if necessary
-    if ops.ndivs > 1:
-        final_outfile = f"{base_outfile}_{sel_name}.root"
-        division_files = [f"{base_outfile}_{sel_name}_{div}.root" for div in range(ops.ndivs)]
-        
-        # Merge files
-        hadd_cmd = f"hadd -f {final_outfile} {' '.join(division_files)}"
-        cleanup_cmd = f"rm -f {' '.join(division_files)}"
-        
-        print(f"[{sel_name}] Merging files...")
-        for cmd in [hadd_cmd, cleanup_cmd]:
-            print(f"  {cmd}")
-            if not ops.dryrun:
-                os.system(cmd)
-    
-    print(f"[{sel_name}] Completed!")
-
 def main():
     """Main execution function."""
     ops = parse_arguments()
@@ -243,7 +227,8 @@ def main():
     file_config = get_file_config(ops.inFile)
     variations = create_selection_variations()
     
-    print(f"Running {len(variations)} selection variations with {ops.ndivs} divisions each")
+    total_trees = len(file_config['treeNames'])
+    print(f"Running {len(variations)} selection variations with {total_trees} trees each, {ops.ndivs} divisions per tree")
     
     # Execute each selection variation sequentially, completing each one fully
     for sel_name, selection in variations:
@@ -251,21 +236,13 @@ def main():
 
 def parse_arguments():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Launch Thrust.cxx jobs with multiple selection variations"
-    )
-    parser.add_argument("-i", "--inFile", required=True,
-                       help="Input ROOT file")
-    parser.add_argument("-o", "--outDir", default="./",
-                       help="Output directory (default: ./)")
-    parser.add_argument("-n", "--ndivs", type=int, default=1,
-                       help="Number of divisions to partition the input file into (default: 1)")
-    parser.add_argument("-j", "--ncpu", type=int, default=1,
-                       help="Number of cores to use for multiprocessing (default: 1)")
-    parser.add_argument("--dryrun", action="store_true",
-                       help="Print commands without executing them")
-    parser.add_argument("--debug", action="store_true",
-                       help="Enable debug mode in Thrust.exe")
+    parser = argparse.ArgumentParser(description="Launch Thrust.cxx jobs with multiple selection variations")
+    parser.add_argument("-i", "--inFile", required=True, help="Input ROOT file")
+    parser.add_argument("-o", "--outDir", default="./", help="Output directory (default: ./)")
+    parser.add_argument("-n", "--ndivs", type=int, default=1, help="Number of divisions to partition the input file into (default: 1)")
+    parser.add_argument("-j", "--ncpu", type=int, default=1, help="Number of cores to use for multiprocessing (default: 1)")
+    parser.add_argument("--dryrun", action="store_true", help="Print commands without executing them")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode in Thrust.exe")
     return parser.parse_args()
 
 if __name__ == "__main__":
