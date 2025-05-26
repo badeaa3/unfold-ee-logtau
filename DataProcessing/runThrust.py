@@ -121,6 +121,7 @@ def create_selection_variations():
     
     return variations
 
+
 def create_job_configs(ops, file_config, variations):
     """Create job configurations for all variations and divisions."""
     base_outfile = Path(ops.outDir) / Path(ops.inFile).stem
@@ -178,15 +179,47 @@ def run_thrust_job(job_config):
         return os.system(cmd)
     return 0
 
-def merge_divided_files(ops, variations):
-    """Merge files that were divided across multiple jobs."""
-    if ops.ndivs <= 1:
-        return
-    
+def run_selection_variation(ops, file_config, sel_name, selection):
+    """Run all divisions for a single selection variation and merge results."""
     base_outfile = Path(ops.outDir) / Path(ops.inFile).stem
     base_outfile = str(base_outfile) + "_thrust"
     
-    for sel_name, _ in variations:
+    # Create job configurations for this variation
+    job_configs = []
+    for division in range(ops.ndivs):
+        # Create output filename
+        if ops.ndivs > 1:
+            outfile = f"{base_outfile}_{sel_name}_{division}.root"
+        else:
+            outfile = f"{base_outfile}_{sel_name}.root"
+        
+        # Combine file config with selection parameters
+        combined_config = {}
+        combined_config.update(file_config)
+        combined_config.update(selection)
+        
+        job_configs.append({
+            "input_file": ops.inFile,
+            "output_file": outfile,
+            "config_string": config_to_string(combined_config),
+            "selection_name": sel_name,
+            "total_divisions": ops.ndivs,
+            "current_division": division,
+            "dry_run": ops.dryrun,
+            "debug": ops.debug
+        })
+    
+    print(f"\n[{sel_name}] Running {ops.ndivs} divisions...")
+    
+    # Execute all divisions for this variation
+    if len(job_configs) == 1:
+        run_thrust_job(job_configs[0])
+    else:
+        with mp.Pool(ops.ncpu) as pool:
+            results = pool.map(run_thrust_job, job_configs)
+    
+    # Merge divided files if necessary
+    if ops.ndivs > 1:
         final_outfile = f"{base_outfile}_{sel_name}.root"
         division_files = [f"{base_outfile}_{sel_name}_{div}.root" for div in range(ops.ndivs)]
         
@@ -194,10 +227,13 @@ def merge_divided_files(ops, variations):
         hadd_cmd = f"hadd -f {final_outfile} {' '.join(division_files)}"
         cleanup_cmd = f"rm -f {' '.join(division_files)}"
         
+        print(f"[{sel_name}] Merging files...")
         for cmd in [hadd_cmd, cleanup_cmd]:
-            print(f"\n{cmd}")
+            print(f"  {cmd}")
             if not ops.dryrun:
                 os.system(cmd)
+    
+    print(f"[{sel_name}] Completed!")
 
 def main():
     """Main execution function."""
@@ -206,21 +242,12 @@ def main():
     # Get file configuration and create variations
     file_config = get_file_config(ops.inFile)
     variations = create_selection_variations()
-
-    # Create job configurations
-    job_configs = create_job_configs(ops, file_config, variations)
-
-    print(f"Running {len(variations)} selection variations with {ops.ndivs} divisions each = {len(job_configs)} total jobs")
     
-    # Execute jobs
-    if len(job_configs) == 1:
-        run_thrust_job(job_configs[0])
-    else:
-        with mp.Pool(ops.ncpu) as pool:
-            results = pool.map(run_thrust_job, job_configs)
+    print(f"Running {len(variations)} selection variations with {ops.ndivs} divisions each")
     
-    # Merge divided files if necessary
-    merge_divided_files(ops, variations)
+    # Execute each selection variation sequentially, completing each one fully
+    for sel_name, selection in variations:
+        run_selection_variation(ops, file_config, sel_name, selection)
 
 def parse_arguments():
     """Parse command line arguments."""
