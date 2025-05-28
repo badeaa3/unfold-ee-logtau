@@ -28,7 +28,7 @@ for hist_name in hist_names:
 
     # pick up plot type
     if "pwflag" in hist_name:
-        pwflag = int(hist_name.split("_")[2].strip("pwflag"))
+        pwflag = int(hist_name.split("_")[1].strip("pwflag"))
         outDir = f"pwflag{pwflag}"
         os.makedirs(outDir, exist_ok=True)
     elif "sel" in hist_name:
@@ -41,7 +41,6 @@ for hist_name in hist_names:
     # Skip if any file is missing the histogram
     if not all(hist_list):  
         print(f"Warning: Missing histogram {hist_name} in some files.")
-        continue
 
     # Create a new canvas for each histogram
     canvas = ALEPHCanvas(hist_name)
@@ -52,11 +51,17 @@ for hist_name in hist_names:
     legend = ALEPHLegend() 
 
     # Normalize histograms if needed (optional)
+    goodHists = []
     for i, hist in enumerate(hist_list):
         
         # general settings
         max_bin_content = 0
-        hist.SetStats(0)  # Remove stats box
+        try:
+            hist.SetStats(0)  # Remove stats box
+            goodHists.append(True)
+        except:
+            goodHists.append(False)
+            continue
         hist.GetYaxis().SetTitleOffset(1.6)
         hist.GetXaxis().SetTitleOffset(1.2)
         hist.GetYaxis().SetMaxDigits(3)
@@ -73,22 +78,15 @@ for hist_name in hist_names:
         XTitle = hist.GetXaxis().GetTitle()
         XBinWidth = hist.GetBinWidth(1)
         temp = XTitle.split("[")
-        # get the units
-        units = "[pb/" 
-        if XBinWidth == 1 and len(temp) != 1:
-            units += temp[1]
-        elif XBinWidth == 1 and len(temp) == 1:
-            units += f"{int(XBinWidth)}]" # unit
-        elif XBinWidth != 1 and len(temp) != 1:
-            units += f"{round(XBinWidth,2)} {temp[1]}"
-        else:
-            units += f"{round(XBinWidth,2)}]"
-        hist.SetYTitle(pltConfig["YTitle"] + " " + units)
+        
+        # get units
+        units = f"{round(XBinWidth,2)}"
+        hist.SetYTitle(pltConfig["YTitle"] + f" / {units}")
 
         # normalize
         if hist.Integral() > 0:
-            hist.Sumw()
-            scale = XBinWidth * hist.hist.Integral()
+            hist.Sumw2()
+            scale = XBinWidth * hist.Integral()
             hist.Scale(1.0 / scale)
 
         # save maximum
@@ -100,6 +98,9 @@ for hist_name in hist_names:
     
     # draw hists and add legend
     for i, hist in enumerate(hist_list):
+        if not goodHists[i]:
+            print(f"Skipping: {files[i]}")
+            continue
         hist.Draw(config[i]["DrawOption"] if i==0 else config[i]["DrawOption"] + " SAME")
         legend.AddEntry(hist, config[i]["legend"], config[i]["LegendDraw"])
 

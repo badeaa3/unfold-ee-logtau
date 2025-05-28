@@ -3,7 +3,7 @@ import ROOT
 # config
 config = []
 config.append({
-    "file" : "../LEP1Data1994_recons_aftercut-MERGED_thrust.root",
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/LEP1Data1994_recons_aftercut-MERGED_thrust_nominal_t.root",
     "legend" : "Data 1994",
     "color" : ROOT.kBlack,
     "DrawOption" : "PE",
@@ -12,10 +12,46 @@ config.append({
     "LegendDraw" : "p"
 })
 config.append({
-    "file" : "../alephMCRecoAfterCutPaths_1994_thrust.root",
-    "legend" : "Pythia 6.1",
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/alephMCRecoAfterCutPaths_1994_thrust_nominal_t.root",
+    "legend" : "Archived Pythia 6.1 Reco",
     "DrawOption" : "HIST",
     "color" : ROOT.kRed,
+    "MarkerStyle" : 20,
+    "LineWidth" : 2,
+    "LegendDraw" : "l"
+})
+config.append({
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_tgenBefore.root",
+    "legend" : "Archived Pythia 6.1",
+    "DrawOption" : "HIST",
+    "color" : ROOT.kBlue,
+    "MarkerStyle" : 20,
+    "LineWidth" : 2,
+    "LegendDraw" : "l"
+})
+config.append({
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/LEP1_PYTHIA8_MC_TGenBefore_NoISR_thrust_no_event_sel_tgenBefore.root",
+    "legend" : "Pythia 8",
+    "DrawOption" : "HIST",
+    "color" : ROOT.kGreen,
+    "MarkerStyle" : 20,
+    "LineWidth" : 2,
+    "LegendDraw" : "l"
+})
+config.append({
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/Herwig_noISR_1000_thrust_no_event_sel_tgenBefore.root",
+    "legend" : "Herwig",
+    "DrawOption" : "HIST",
+    "color" : ROOT.kMagenta,
+    "MarkerStyle" : 20,
+    "LineWidth" : 2,
+    "LegendDraw" : "l"
+})
+config.append({
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/Sherpa_noISR_100_thrust_no_event_sel_tgenBefore.root",
+    "legend" : "Sherpa",
+    "DrawOption" : "HIST",
+    "color" : ROOT.kGrape,
     "MarkerStyle" : 20,
     "LineWidth" : 2,
     "LegendDraw" : "l"
@@ -32,78 +68,82 @@ ALEPHTagLowerLeft = 0.3
 plotConfig = {}
 # what we are plotting reduces to the ytitle in terms of sigma: 1/N dN/dX = 1/(sigma * L) d(sigma*L)/dX = 1/sigma d(sigma)/dX
 plotConfig["cosTheta"] = {
-    "SetLogy" : False, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dcos#theta", 
+    "SetLogy" : False, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dcos#theta", 
     "Ndivisions": 505, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 1.5
 }
 plotConfig["d0"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dd_{0}", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dd_{0}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 10
 }
 plotConfig["z0"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dz_{0}", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dz_{0}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 10
 }
 plotConfig["energy"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dE", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dE", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["mass"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dm", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dm", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 5
 }
 plotConfig["ntpc"] = {
-    "SetLogy" : False, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dN_{TPC}", 
+    "SetLogy" : False, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dN_{TPC}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 1.5
 }
 plotConfig["phi"] = {
-    "SetLogy" : False, "rebin" : 10, "YTitle": "1/#sigma d#sigma/d#phi", 
+    "SetLogy" : False, "rebin" : 10, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/d#phi", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 1.5
 }
 plotConfig["pmag"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/d|#vec{p}|", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/d|#vec{p}|", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["pt"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dp_{T}", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dp_{T}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["cosThetaSph"] = {
-    "SetLogy" : False, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dcos#theta_{Sph}", 
+    "SetLogy" : False, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dcos#theta_{Sph}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 1.5
 }
 plotConfig["cosThetaThrust"] = {
-    "SetLogy" : False, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dcos#theta_{Thr}", 
+    "SetLogy" : False, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dcos#theta_{Thr}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 1.5
 }
 plotConfig["eCh"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dE_{Ch}", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dE_{Ch}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["evis"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dE_{Vis}", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dE_{Vis}", 
+    "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
+}
+plotConfig["logtau"] = {
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dlog(#tau)",
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["missP"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/d|#vec{p}_{miss}|", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/d|#vec{p}_{miss}|", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["nneu"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dN_{Neu}", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dN_{Neu}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["ntrk"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dN_{Trk}", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dN_{Trk}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["ntrkPlusNeu"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dN_{Trk + Neu}", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dN_{Trk + Neu}", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5
 }
 plotConfig["sphericity"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dSph", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dSph", 
     "Ndivisions": 310, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 5
 }
 plotConfig["thrust"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "1/#sigma d#sigma/dT", 
+    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dT", 
     "Ndivisions": 505, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 5
 }

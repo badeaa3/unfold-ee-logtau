@@ -13,6 +13,8 @@ Analysis: MITHIG-MOD-20-001 Omnifold applied to ALEPH data
 #include "TString.h"
 #include "TH1D.h"
 
+#include "TError.h"  // Required for gErrorIgnoreLevel and kError
+
 // thrust code
 #include "thrustTools.h"
 #include "sphericityTools.h"
@@ -86,6 +88,9 @@ void pbftp(double time_diff, int nprocessed, int ntotal) {
  */
 int main(int argc, char* argv[]) {
 
+  // Somewhere before the eigenvalue call:
+  gErrorIgnoreLevel = kError; //kFatal;  // Suppress warnings and info messages. To suppress Warning in <EigenVectors(TVectorT &)>: Only real part of eigen-values will be returned
+ 
   // #%%%%%%%%%%%%%%%%%%%%%%%%%% User Input %%%%%%%%%%%%%%%%%%%%%%%%%%#
   std::string inFileName = "";
   std::string outFileName = "";
@@ -202,7 +207,6 @@ int main(int argc, char* argv[]) {
   std::chrono::duration<double> elapsed_seconds;
 
   std::cout << TString::Format("Looping over tree: %s", tree.c_str()) << std::endl;
-
   // load input tree
   bool genTree = tree == "tgen" || tree == "tgenBefore";
   std::unique_ptr<TTree> t ((TTree*) f->Get(tree.c_str()));
@@ -222,7 +226,6 @@ int main(int argc, char* argv[]) {
   t->SetBranchAddress("pmag", &pmag);
   t->SetBranchAddress("mass", &mass);
   t->SetBranchAddress("charge", &charge);
-
   // event level quantities
   TVector3 thrust;
   std::unique_ptr<Sphericity> spher;
@@ -260,7 +263,7 @@ int main(int argc, char* argv[]) {
   tout->Branch("conversionElectronTheta", &conversionElectronTheta);
   tout->Branch("conversionElectronPhi", &conversionElectronPhi);
   tout->Branch("conversionElectronPt", &conversionElectronPt);
-  
+
   // create object level histograms for each pwflag
   std::map<std::pair<int, std::string>, TH1D*> hists;
   for(int iP=0; iP <= 5; iP++){
@@ -343,10 +346,13 @@ int main(int argc, char* argv[]) {
 
       // fill and save
       bool saveParticle = false;
-      
+
+      // nominally all gen passes
+      if (genTree) saveParticle = true;
+
       // special cleaning for ALEPH MC
       if (inFileType == "ALEPHMC"){
-
+	
 	// gen only cleaning neutral cleaning around phi = 0 for photon radiation along beam pipe
 	if (genTree && charge[iP] == 0 && std::abs(phi[iP]) <= 0.001 && pt[iP] > 0.00099 && pt[iP] < 0.001009) saveParticle = false;
 	
@@ -420,7 +426,7 @@ int main(int argc, char* argv[]) {
         selectedPz.push_back(pz[iP]);
         selectedPwflag.push_back(pwflag[iP]);
         // fill particle kinematic histograms
-        if(inFileType != "LEP1Data" || inFileType != "ALEPHMC") continue; // pwflag only exists for archived ALEPH data
+        if(inFileType == "PYTHIA8") continue; // pwflag only exists for archived ALEPH data style format
         if(!(pwflag[iP] >= 0 && pwflag[iP] <= 5)) continue; // only save pwflag 0-5
         hists[{pwflag[iP], "cosTheta"}]->Fill(cos(theta[iP]));
         hists[{pwflag[iP], "phi"}]->Fill(phi[iP]);
@@ -449,7 +455,7 @@ int main(int argc, char* argv[]) {
     MissP = met.Mag();
 
     // include missing momentum vector in thrust calculation
-    if (selMap["doMET"] > 0.5) {
+    if (selMap["doMET"]) {
       selectedParts += 1;
       selectedPx.push_back(met.X()); // X() same as Px() for TVector3
       selectedPy.push_back(met.Y()); // Y() same as Py() for TVector3
