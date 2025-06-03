@@ -1,5 +1,16 @@
 import ROOT
 import os
+import argparse
+
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Plot histograms from ROOT files')
+parser.add_argument("-o", '--outDir', type=str, default='.', help='Output directory for plots (default: current directory)')
+args = parser.parse_args()
+
+# output directory
+outDir = args.outDir
+os.makedirs(outDir, exist_ok=True)
 
 # Run in batch mode to suppress UI popups
 ROOT.gROOT.SetBatch(True)
@@ -7,6 +18,7 @@ ROOT.gROOT.SetBatch(True)
 # custom
 from PlotConfig import *
 from style import *
+import argparse
 SetALEPHStyle()
 
 # Open all files
@@ -29,12 +41,12 @@ for hist_name in hist_names:
     # pick up plot type
     if "pwflag" in hist_name:
         pwflag = int(hist_name.split("_")[1].strip("pwflag"))
-        outDir = f"pwflag{pwflag}"
-        os.makedirs(outDir, exist_ok=True)
+        # outDir = f"pwflag{pwflag}"
+        # os.makedirs(outDir, exist_ok=True)
     elif "sel" in hist_name:
         objSel = int(hist_name.split("_")[2].strip("sel"))
-        outDir = f"sel{objSel}"
-        os.makedirs(outDir, exist_ok=True)
+        # outDir = f"sel{objSel}"
+        # os.makedirs(outDir, exist_ok=True)
 
     # get list of hists
     hist_list = [f.Get(hist_name) for f in files]
@@ -48,7 +60,7 @@ for hist_name in hist_names:
         canvas.SetLogy()
 
     # legend
-    legend = ALEPHLegend() 
+    legend = ALEPHLegend(loc=pltConfig['legloc'], textsize=0.035) 
 
     # Normalize histograms if needed (optional)
     goodHists = []
@@ -68,6 +80,7 @@ for hist_name in hist_names:
         # rebin and then set divisions
         hist.Rebin(pltConfig["rebin"])
         hist.GetXaxis().SetNdivisions(pltConfig["Ndivisions"])
+        hist.GetYaxis().SetNdivisions(pltConfig["Ndivisions"])
         # set style
         hist.SetLineColor(config[i]["color"])
         hist.SetMarkerColor(config[i]["color"])
@@ -80,7 +93,10 @@ for hist_name in hist_names:
         temp = XTitle.split("[")
         
         # get units
-        units = f"{round(XBinWidth,2)}"
+        if XBinWidth == int(XBinWidth):
+            units = f"{int(XBinWidth)}"
+        else:
+            units = f"{round(XBinWidth, 2)}"
         hist.SetYTitle(pltConfig["YTitle"] + f" / {units}")
 
         # normalize
@@ -108,14 +124,20 @@ for hist_name in hist_names:
     legend.Draw()
 
     # set the ALEPH tag
-    firstspace = 0.03
-    space = 0.04
-    ALEPHLabel(0.2, pltConfig["ALEPHTagTop"])
-    myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 0*space, "#sqrt{s} = 91.2 GeV, 45 pb ^{-1}", size=0.035)
+    # firstspace = 0.05
+    # space = 0.04
+    # ALEPHLabel(0.2, pltConfig["ALEPHTagTop"])
+    # myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 0*space, "#sqrt{s} = 91.2 GeV", size=0.035) # "#sqrt{s} = 91.2 GeV, 45 pb ^{-1}"
+    # if "pwflag" in hist_name:
+    #     myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 1*space, pwflags[pwflag], size=0.035)
+    # elif "objSel" in hist_name:
+    #     myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 1*space, f"Object Selection {objSel}", size=0.035)
+    header = "ALEPH e^{+}e^{-}, #sqrt{s} = 91.2 GeV"
     if "pwflag" in hist_name:
-        myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 1*space, pwflags[pwflag], size=0.035)
-    elif "objSel" in hist_name:
-        myText(0.2, pltConfig["ALEPHTagTop"] - firstspace - 1*space, f"Object Selection {objSel}", size=0.035)
+        header += f", {pwflags[pwflag]}"
+    # elif "objSel" in hist_name:
+    #     header += f", {objSel}"
+    myText(0.165, 0.97, header, size=0.03)
 
     # Save to individual PDF
     pdf_name = os.path.join(outDir, f"{hist_name}.pdf")
