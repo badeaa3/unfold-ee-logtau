@@ -10,20 +10,6 @@ from PlotConfig import *
 from style import *
 SetALEPHStyle()
 
-# def ratio_hist(A, B):
-#     if not A or not B:
-#         return None  # Ensure histograms are valid
-    
-#     # Ensure histograms have sum of weights squared enabled for error propagation
-#     A.Sumw2()
-#     B.Sumw2()
-
-#     result = A.Clone("result") # Clone A to store the result, so we don't modify the original histogram
-#     # result.Add(B, -1) # Subtract B from A (A - B)
-#     # result.Divide(A) # Divide by A: (A - B) / A
-#     result.Divide(B)
-#     return result  # Return the new histogram
-
 # pick up plot configurations
 hist_name = "logtau"
 pltConfig = plotConfig[hist_name]
@@ -82,21 +68,6 @@ def get_ratio(numeratorFilePath, denominatorFilePath):
 
     return ratio_hist
 
-# # will compare the following nominal (1) vs no selection (0), nominal (1) for closure, and all variations (2-7)
-# comparisons = [
-#     [1, 0, "Variation = No Event Selection"],
-#     [1, 1, "Variation = Nominal"],
-#     [1, 2, "Variation = Chg. Track N_{TPC} #geq 4 #rightarrow 7"],
-#     [1, 3, "Variation = Chg. Track p_{T} #geq 0.2 #rightarrow 0.4 GeV"],
-#     [1, 4, "Variation = E_{Ch} #geq 15 #rightarrow 10 GeV"],
-#     [1, 5, "Variation = Thrust w/o Neutral Objects"],
-#     [1, 6, "Variation = Thrust w/ #vec{p}_{miss} as Object"],
-#     [1, 7, "Variation = E_{Vis} #geq 0 #rightarrow 0.5E_{cm}"],
-#     [1, 8, "Variation = MissP < 20 GeV"],
-#     [1, 9, "Variation = |#vec{p}_{miss}| < 20 GeV and Thrust w/#vec{p}_{miss}"],
-#     [1, 10, "Variation = Neutral Object E #geq 0.4 #rightarrow 0.8 GeV"],
-# ]
-
 variation_labels = {
     "ech10" : "Total Charged Energy Variation", # E_{Ch} #geq 15 #rightarrow 10 GeV",
     "no_event_sel": "No Event Selection",
@@ -108,7 +79,7 @@ variation_labels = {
 }
 
 # output directory
-outDir = f"ThrustVariationsPlots"
+outDir = f"SystematicVariationsPlots"
 os.makedirs(outDir, exist_ok=True)
 
 # get list of files
