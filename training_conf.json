@@ -1,7 +1,8 @@
 {
-    "f_data": "/global/homes/b/badea/aleph/data/ThrustDerivation/030725/LEP1Data1994_recons_aftercut-MERGED_thrust.root",
-    "f_mc": "/pscratch/sd/b/badea/aleph/data/ThrustDerivation/042825/alephMCRecoAfterCutPaths_1994_thrust_CleanNeutralAndConversion.root",
-    "SystematicVariation": 1,
+    "storage" : "/global/cfs/cdirs/m3246/aleph/derivations/20250527",
+    "data" : "LEP1Data1994_recons_aftercut-MERGED_thrust_nominal_t.root",
+    "reco" : "alephMCRecoAfterCutPaths_1994_thrust_nominal_t.root",
+    "gen" : "alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_tgenBefore.root",
     "output_directory": "./",
     "niter": 5,
     "layer_sizes" : [100, 100, 100],

@@ -6,37 +6,25 @@ import tensorflow as tf
 
 # file paths
 mc_paths = {
-    "ArchivedPYTHIA6" : {
-        "path" : "/pscratch/sd/b/badea/aleph/data/ThrustDerivation/042825/alephMCRecoAfterCutPaths_1994_thrust_CleanNeutralAndConversion.root",
-        "tree" : "tgenBefore", # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
-        "branches" : ["px", "py", "pz"]
-    },
-    "PYTHIA8" : {
-        "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/ThrustDerivation/042925/LEP1_PYTHIA8_MC_TGenBefore_thrust.root",
-        "tree" : "tgenBefore",
-        "branches" : ["px", "py", "pz"]
-    },
-    # "PYTHIA8_DIRE" : {
-    #     "path": "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_DIRE.root",
-    #     "tree" : "tgen",
-    #     "branches" : ["px", "py", "pz"]
-    # },
-    # "PYTHIA8_VINCIA" : {
-    #     "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/LEP1_pythia8_MC_VINCIA.root",
-    #     "tree" : "tgen",
-    #     "branches" : ["px", "py", "pz"]
-    # },
-        # "HERWIG7" : {
-    #     "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/HERWIG7/2_10_2024_LEP1MC/LEP-Matchbox-S1000-1_0_0.root",
-    #     "tree" : "t",
-    #     "branches" : ["px", "py", "pz"]
-    # },
-    # "SHERPA" : {
-    #     "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/abaty/SHERPA/2_10_2024_LEP1MC/Sherpa_RNG100_0_0.root",
-    #     "tree" : "t",
-    #     "branches" : ["px", "py", "pz"]
-    # },
+        "ArchivedMC" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
+        "Pythia8" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/LEP1_PYTHIA8_MC_TGenBefore_NoISR_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
+        "Herwig" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/Herwig_noISR_ALL_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
+        "Sherpa" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/Sherpa_noISR_ALL_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
 }
+
+# # file paths
+# mc_paths = {
+#     "ArchivedPYTHIA6" : {
+#         "path" : "/pscratch/sd/b/badea/aleph/data/ThrustDerivation/042825/alephMCRecoAfterCutPaths_1994_thrust_CleanNeutralAndConversion.root",
+#         "tree" : "tgenBefore", # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
+#         "branches" : ["px", "py", "pz"]
+#     },
+#     "PYTHIA8" : {
+#         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/ThrustDerivation/042925/LEP1_PYTHIA8_MC_TGenBefore_thrust.root",
+#         "tree" : "tgenBefore",
+#         "branches" : ["px", "py", "pz"]
+#     },
+# }
 
 def expit(x):
     return 1. / (1. + np.exp(-x))
@@ -77,7 +65,7 @@ def loadDataParticles(filePath, treeName, branches, maxNPart, padValue = np.nan)
         for key in branches:
             if key in tree.keys():
                 # temp = loadBranchAndPad(tree[key], maxNPart, value=padValue) # pad to get to maxNPart
-                temp = tree[key].array()[:,0]
+                temp = tree[key].array()
                 temp = padAwkward(temp, maxNPart, value=padValue) # pad to get to maxNPart
                 data.append(temp)
             else:
@@ -167,8 +155,7 @@ def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, nor
 
 
 if __name__ == "__main__":
-    # dtype = "PYTHIA8"
-    dtype = "ArchivedPYTHIA6"
+    dtype = "Sherpa"
     aleph_mc = loadDataParticles(
         filePath = mc_paths[dtype]["path"],
         treeName = mc_paths[dtype]["tree"],

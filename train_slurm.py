@@ -211,12 +211,12 @@ if __name__ == "__main__":
     if args.run_systematics:
       for i in range(n_systematics):
 
-        # sysematic variation
-        # 1 = nominal, 2 onwards = variations
-        SystematicVariationList = [2, 3, 4, 5, 6] # according to the order in DataProcessing/Thrust.cxx
+        # sysematic variations
+        SystematicVariationList = ["ntpc7", "pt04", "ech10", "no_neutrals", "with_met"]
         for SystematicVariation in SystematicVariationList:
           temp = training_conf.copy()
-          temp["SystematicVariation"] = SystematicVariation
+          temp["data"] = temp["data"].replace("nominal", SystematicVariation)
+          temp["reco"] = temp["reco"].replace("nominal", SystematicVariation)
           temp["job_type"] = "Systematics"
           temp["i_ensemble_per_omnifold"] = i
           confs.append(temp)

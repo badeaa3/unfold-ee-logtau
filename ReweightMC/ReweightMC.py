@@ -102,9 +102,9 @@ def train(conf):
 
     # Particle level distribution reweighting 
     aleph_mc = loadDataParticles(
-        filePath = mc_paths["ArchivedPYTHIA6"]["path"],
-        treeName = mc_paths["ArchivedPYTHIA6"]["tree"],
-        branches = mc_paths["ArchivedPYTHIA6"]["branches"],
+        filePath = mc_paths["ArchivedMC"]["path"],
+        treeName = mc_paths["ArchivedMC"]["tree"],
+        branches = mc_paths["ArchivedMC"]["branches"],
         maxNPart = conf["maxNPart"],
     )
     aleph_mc = convert_PxPyPz_to_EtaPhiPmag(aleph_mc)
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         "batch_size": 2048,
         "verbose": True,
         "maxNPart": 80,
-        "new_mc_name": "PYTHIA8",
+        "new_mc_name": "Sherpa",
         "step1_epochs" : 2,
         "step2_epochs" : 200,
         "early_stopping_patience" : 20,
