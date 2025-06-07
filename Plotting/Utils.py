@@ -159,7 +159,7 @@ def ratio_with_uncertainty(A, B, A_err=None, B_err=None):
 
 def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]}, figsize=(6,6))
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3.5, 1]}, figsize=(4,4))
     plt.subplots_adjust(hspace=0)
 
     # plot error bar plots
@@ -186,7 +186,7 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
                 label=plot["label"], 
                 color=plot["color"],
                 ls=plot["ls"],
-                lw=1
+                lw=1.5
             )
 
     # plot ratios
@@ -211,14 +211,15 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
                 yerr = plot["ratio_yerr"], 
                 fmt = 'o', 
                 color = plot["color"],  
-                markersize = 4
+                markersize = 1.5
             )
         elif plot["plotType"] == "stairs":
             ax2.plot(
                 (plot["x"][:-1] + plot["x"][1:]) / 2, 
                 plot["ratio_y"], 
                 color = plot["color"],
-                ls = plot["ls"]
+                ls = plot["ls"],
+                lw=1.5
             )
 
     # ratio horizontal line
@@ -231,17 +232,24 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
                fontsize = style["legend_fontsize"])
     
     # axis settings
-    ax1.set_ylabel(style["ax1_ylabel"])
+    ax1.set_ylabel(style["ax1_ylabel"], fontsize=14)
     ax1.set_yscale(style["ax1_yscale"])
-    ax2.set_xlabel(style["ax2_xlabel"])
+    ax2.set_xlabel(style["ax2_xlabel"], fontsize=14, labelpad=8)
     ax2.set_xscale(style["ax2_xscale"])
-    ax2.set_ylabel(style["ax2_ylabel"], fontsize=15)
+    ax2.set_ylabel(style["ax2_ylabel"], fontsize=12)
 
     # set limits
     # ax1.set_ylim(0.2*10**-5, 10**0)
     ax1.set_ylim(style["ax1_ylim"][0], style["ax1_ylim"][1])
     ax2.set_xlim(style["bins"][0], style["bins"][-1])
     ax2.set_ylim(style["ax2_ylim"][0], style["ax2_ylim"][1])
+
+    ax1.tick_params(axis='both', which='major', labelsize=13)
+    ax2.tick_params(axis='both', which='major', labelsize=13)
+
+    # top text
+    header = r"ALEPH e$^{+}$e$^{-}$, $\sqrt{s}$ = 91.2 GeV"
+    ax1.text(0, 1, header, transform=ax1.transAxes, ha='left', va='bottom', fontsize=8)
 
     return fig, (ax1, ax2)
 

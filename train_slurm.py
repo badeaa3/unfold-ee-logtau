@@ -256,7 +256,7 @@ if __name__ == "__main__":
         confs.append(temp)
     
     # add configurations for ensembling
-    total_n_ensembles = 10 # 200
+    total_n_ensembles = 200
     n_ensembles = math.ceil(total_n_ensembles / n_training_per_node)
     if args.run_ensembling:
       for i in range(n_ensembles):
