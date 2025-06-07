@@ -56,7 +56,7 @@ def get_ratio(numeratorFilePath, denominatorFilePath):
     ratio_hist.SetMarkerStyle(20)
     ratio_hist.SetMarkerSize(0.8)
     ratio_hist.SetLineWidth(2)
-    ratio_hist.SetYTitle("Variation/Nominal") # (Nominal - Variation)/Nominal")
+    ratio_hist.SetYTitle("Variation / Nominal") # (Nominal - Variation)/Nominal")
     ratio_hist.GetYaxis().SetRangeUser(0.02, 1.98) # -2.8,2.8)
     
     # Set directory to None to detach from file before closing
@@ -68,65 +68,76 @@ def get_ratio(numeratorFilePath, denominatorFilePath):
 
     return ratio_hist
 
-variation_labels = {
-    "ech10" : "Total Charged Energy Variation", # E_{Ch} #geq 15 #rightarrow 10 GeV",
-    "no_event_sel": "No Event Selection",
-    "no_neutrals" : "Without Neutral Objects", # "Thrust w/o Neutral Objects",
-    "nominal" : "Nominal",
-    "ntpc7" : "Chg. Track NTPC Hit Variation", # "Chg. Track N_{TPC} #geq 4 #rightarrow 7",
-    "pt04" : "Chg. Track pT Variation", # Chg. Track p_{T} #geq 0.2 #rightarrow 0.4 GeV",
-    "with_met": "With MET Object", # Thrust w/ MET",
-}
+if __name__ == "__main__":
 
-# output directory
-outDir = f"SystematicVariationsPlots"
-os.makedirs(outDir, exist_ok=True)
+    variation_labels = {
+        "ech10" : "Total Charged Energy Variation", # E_{Ch} #geq 15 #rightarrow 10 GeV",
+        "no_event_sel": "No Event Selection",
+        "no_neutrals" : "Without Neutral Objects", # "Thrust w/o Neutral Objects",
+        "nominal" : "Nominal",
+        "ntpc7" : "Chg. Track NTPC Hit Variation", # "Chg. Track N_{TPC} #geq 4 #rightarrow 7",
+        "pt04" : "Chg. Track pT Variation", # Chg. Track p_{T} #geq 0.2 #rightarrow 0.4 GeV",
+        "with_met": "With MET Object", # Thrust w/ MET",
+    }
 
-# get list of files
-dataFileList = config[0]["file"].replace("nominal", "*")
-dataFileList = sorted(glob.glob(dataFileList))
-print(dataFileList)
+    # output directory
+    outDir = f"SystematicVariationsPlots"
+    os.makedirs(outDir, exist_ok=True)
 
-mcFileList = config[1]["file"].replace("nominal", "*")
-mcFileList = sorted(glob.glob(mcFileList))
-print(mcFileList)
+    # get list of files
+    dataFileList = config[0]["file"].replace("nominal", "*")
+    dataFileList = sorted(glob.glob(dataFileList))
+    print(dataFileList)
 
-# loop over the others
-for dataFile, mcFile in zip(dataFileList, mcFileList):
+    mcFileList = config[1]["file"].replace("nominal", "*")
+    mcFileList = sorted(glob.glob(mcFileList))
+    print(mcFileList)
 
-    # print the files    
-    print(dataFile)
-    print(mcFile)
+    # loop over the others
+    for dataFile, mcFile in zip(dataFileList, mcFileList):
 
-    # get variation name
-    variation = dataFile.split("thrust_")[-1].split("_t.root")[0]
-    print(variation)
+        # print the files    
+        print(dataFile)
+        print(mcFile)
 
-    # get the ratios
-    ratio_data = get_ratio(config[0]["file"], dataFile)
-    ratio_mc = get_ratio(config[1]["file"], mcFile)
+        # get variation name
+        variation = dataFile.split("thrust_")[-1].split("_t.root")[0]
+        print(variation)
 
-    # Create a new canvas for each histogram
-    canvas = ALEPHCanvas(f"c_xyz")
+        # get the ratios
+        ratio_data = get_ratio(config[0]["file"], dataFile)
+        ratio_mc = get_ratio(config[1]["file"], mcFile)
 
-    # draw
-    ratio_data.Draw("E1")
-    ratio_mc.Draw("E1 same")
+        # Create a new canvas for each histogram
+        canvas = ALEPHCanvas(f"c_xyz")
 
-    # Draw a dashed light gray horizontal line at y=1
-    line = ROOT.TLine(ratio_data.GetXaxis().GetXmin(), 1, ratio_data.GetXaxis().GetXmax(), 1)
-    line.SetLineColor(ROOT.kGray + 1)
-    line.SetLineStyle(2)  # Dashed line
-    line.SetLineWidth(3)
-    line.Draw()
+        # legend
+        legend = ALEPHLegend(loc=[0.58, 0.25, 0.78, 0.35], textsize=0.04) 
 
-    header = "ALEPH e^{+}e^{-}, #sqrt{s} = 91.2 GeV" + f", {variation_labels[variation]}"
-    myText(0.165, 0.97, header, size=0.03)
-    
-    # Save to individual PDF
-    pdf_name = os.path.join(outDir, f"{hist_name}_check_{variation}.pdf")
-    canvas.Print(pdf_name)
-    print(f"Saved: {pdf_name}")
+        # draw
+        ratio_data.Draw("E1")
+        ratio_mc.Draw("E1 same")
 
-    # Cleanup
-    canvas.Close()
+        # add to legend
+        legend.AddEntry(ratio_data, "Data", "p")
+        legend.AddEntry(ratio_mc, "Archived MC", "p")
+
+        legend.Draw()
+
+        # Draw a dashed light gray horizontal line at y=1
+        line = ROOT.TLine(ratio_data.GetXaxis().GetXmin(), 1, ratio_data.GetXaxis().GetXmax(), 1)
+        line.SetLineColor(ROOT.kGray + 1)
+        line.SetLineStyle(2)  # Dashed line
+        line.SetLineWidth(3)
+        line.Draw()
+
+        header = "ALEPH e^{+}e^{-}, #sqrt{s} = 91.2 GeV" + f", {variation_labels[variation]}"
+        myText(0.165, 0.97, header, size=0.03)
+        
+        # Save to individual PDF
+        pdf_name = os.path.join(outDir, f"{hist_name}_check_{variation}.pdf")
+        canvas.Print(pdf_name)
+        print(f"Saved: {pdf_name}")
+
+        # Cleanup
+        canvas.Close()
