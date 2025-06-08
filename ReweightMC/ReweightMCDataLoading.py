@@ -51,7 +51,8 @@ def loadData(filePath, treeName, branches, SystematicVariation=0):
     data = []
     with uproot.open(filePath) as rFile:
         for branch in branches:
-            temp = np.array([x[i] for x in np.array(rFile[f"{treeName}/{branch}"])]) # reco level
+            # temp = np.array([x[i] for x in np.array(rFile[f"{treeName}/{branch}"])]) # reco level
+            temp = np.array(rFile[f"{treeName}/{branch}"])
             data.append(temp)
     # stack to form data
     data = np.stack(data,axis=1)

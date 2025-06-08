@@ -157,7 +157,7 @@ def ratio_with_uncertainty(A, B, A_err=None, B_err=None):
 
     return ratio, ratio_err
 
-def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
+def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$^{+}$e$^{-}$, $\sqrt{s}$ = 91.2 GeV"):
 
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3.5, 1]}, figsize=(4,4))
     plt.subplots_adjust(hspace=0)
@@ -248,7 +248,6 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10 ):
     ax2.tick_params(axis='both', which='major', labelsize=13)
 
     # top text
-    header = r"ALEPH e$^{+}$e$^{-}$, $\sqrt{s}$ = 91.2 GeV"
     ax1.text(0, 1, header, transform=ax1.transAxes, ha='left', va='bottom', fontsize=8)
 
     return fig, (ax1, ax2)
