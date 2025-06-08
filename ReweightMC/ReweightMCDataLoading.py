@@ -12,20 +12,6 @@ mc_paths = {
         "Sherpa" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/Sherpa_noISR_ALL_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
 }
 
-# # file paths
-# mc_paths = {
-#     "ArchivedPYTHIA6" : {
-#         "path" : "/pscratch/sd/b/badea/aleph/data/ThrustDerivation/042825/alephMCRecoAfterCutPaths_1994_thrust_CleanNeutralAndConversion.root",
-#         "tree" : "tgenBefore", # t=reco, tgen = generator level after hadronic event selection, tgenBefore = generator level before hadronic event selection
-#         "branches" : ["px", "py", "pz"]
-#     },
-#     "PYTHIA8" : {
-#         "path" : "/pscratch/sd/b/badea/aleph/data/LEP1MCVariations/hannah/ThrustDerivation/042925/LEP1_PYTHIA8_MC_TGenBefore_thrust.root",
-#         "tree" : "tgenBefore",
-#         "branches" : ["px", "py", "pz"]
-#     },
-# }
-
 def expit(x):
     return 1. / (1. + np.exp(-x))
 
