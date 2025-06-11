@@ -33,8 +33,10 @@ def loadWeights(inPath):
         omnifold_weights *= starting_weights_mc  
 
         # initialize the list if it doesn't exist, then append to it
-        weights.setdefault(conf["SystematicVariation"], []).append((conf["i_ensemble_per_omnifold"], omnifold_weights))
-
+        if "SystematicVariation" in conf.keys():
+            weights.setdefault(conf["SystematicVariation"], []).append((conf["i_ensemble_per_omnifold"], omnifold_weights))
+        else:
+            weights.setdefault(conf["data"], []).append((conf["i_ensemble_per_omnifold"], omnifold_weights))
 
     # sort according to the index of ensemble, i.e. submission order. Then stack in order of SystematicVariation 
     temp = []
