@@ -181,7 +181,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # create top level output directory
-    top_dir = os.path.abspath(os.path.join("results", f'training-{"%08x" % random.randrange(16**8)}', "%j"))
+    top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/UniFold/results/"
+    top_dir = os.path.abspath(os.path.join(top_dir, f'training-{"%08x" % random.randrange(16**8)}', "%j"))
 
     with open("training_conf.json") as f:
       training_conf = json.load(f)
@@ -225,7 +226,8 @@ if __name__ == "__main__":
     if args.run_theory_uncert:
       theory_variations = [
         # ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-0eeee3d7/609ff241/model_weights_b22f1cf8/Reweight_Step2.reweight.npy"] # without gen cleaning
-        ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-dcb1df64/38187555/model_weights_fe518abe/Reweight_Step2.reweight.npy"] # with gen cleaning
+        # ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-dcb1df64/38187555/model_weights_fe518abe/Reweight_Step2.reweight.npy"] # with gen cleaning
+        ["Sherpa", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-4a02ce97/39426550/model_weights_1afea5d3/Reweight_Step2.reweight.npy"]
       ]
       for i in range(n_systematics):
         for name, inFileName in theory_variations:
@@ -256,7 +258,7 @@ if __name__ == "__main__":
         confs.append(temp)
     
     # add configurations for ensembling
-    total_n_ensembles = 200
+    total_n_ensembles = 100
     n_ensembles = math.ceil(total_n_ensembles / n_training_per_node)
     if args.run_ensembling:
       for i in range(n_ensembles):

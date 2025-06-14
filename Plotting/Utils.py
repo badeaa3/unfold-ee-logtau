@@ -4,9 +4,35 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 
+def loadWeightPaths(file_pattern):
+    fileList = glob.glob(file_pattern)
+    d = {}
+
+    for file_path in fileList:
+        with open(file_path) as f:
+            conf = json.load(f)
+
+        job_type = conf["job_type"]
+        data_key = conf["data"].split("_thrust_")[-1].split("_t.root")[0]
+        weight_path = os.path.dirname(file_path)
+
+        if job_type not in d:
+            d[job_type] = {}
+
+        if data_key not in d[job_type]:
+            d[job_type][data_key] = []
+
+        d[job_type][data_key].append(weight_path)
+
+    return d
+
 def loadWeights(inPath):
     
-    pathList = glob.glob(inPath)
+    if type(inPath) == str:
+        pathList = glob.glob(inPath)
+    if type(inPath) == list:
+        pathList = inPath
+
     weights = {}
     for base_path in pathList:
 
