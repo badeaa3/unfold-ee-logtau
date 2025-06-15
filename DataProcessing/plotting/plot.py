@@ -41,15 +41,11 @@ for hist_name in hist_names:
     # pick up plot type
     if "pwflag" in hist_name:
         pwflag = int(hist_name.split("_")[1].strip("pwflag"))
-        # outDir = f"pwflag{pwflag}"
-        # os.makedirs(outDir, exist_ok=True)
-    elif "sel" in hist_name:
-        objSel = int(hist_name.split("_")[2].strip("sel"))
-        # outDir = f"sel{objSel}"
-        # os.makedirs(outDir, exist_ok=True)
+
 
     # get list of hists
     hist_list = [f.Get(hist_name) for f in files]
+
     # Skip if any file is missing the histogram
     if not all(hist_list):  
         print(f"Warning: Missing histogram {hist_name} in some files.")
@@ -60,12 +56,17 @@ for hist_name in hist_names:
         canvas.SetLogy()
 
     # legend
-    legend = ALEPHLegend(loc=pltConfig['legloc'], textsize=0.035) 
+    legend = ALEPHLegend(loc=pltConfig['legloc'], textsize=0.025) 
 
     # Normalize histograms if needed (optional)
     goodHists = []
     for i, hist in enumerate(hist_list):
         
+        # pwflag don't do no_event_sel?
+        if "pwflag" in hist_name and "no_event_sel" in config[i]["file"]:
+            goodHists.append(False)
+            continue
+
         # general settings
         max_bin_content = 0
         try:
@@ -86,6 +87,7 @@ for hist_name in hist_names:
         hist.SetMarkerColor(config[i]["color"])
         hist.SetMarkerStyle(config[i]["MarkerStyle"])
         hist.SetLineWidth(config[i]["LineWidth"])
+        hist.SetLineStyle(config[i]["LineStyle"])
 
         # create the y-axis title 
         XTitle = hist.GetXaxis().GetTitle()
@@ -110,7 +112,8 @@ for hist_name in hist_names:
 
     # Set y-axis range to scale times the maximum bin content
     if max_bin_content > 0:
-        hist_list[0].SetMaximum(pltConfig["scale_max_bin_content"] * max_bin_content)
+        first_idx = [i for i, val in enumerate(goodHists) if val][0]
+        hist_list[first_idx].SetMaximum(pltConfig["scale_max_bin_content"] * max_bin_content)
     
     # draw hists and add legend
     for i, hist in enumerate(hist_list):

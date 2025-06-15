@@ -27,7 +27,7 @@ if __name__ == "__main__":
     canvas = ALEPHCanvas(f"c_xyz")
 
     # Create a legend
-    legend = ALEPHLegend(loc=[0.58, 0.2, 0.78, 0.4], textsize=0.04) 
+    legend = ALEPHLegend(loc=[0.55, 0.25, 0.75, 0.4], textsize=0.03) 
 
     ratios = []
     # Add variations to the legend
@@ -39,7 +39,31 @@ if __name__ == "__main__":
         ratios[-1].SetLineColor(colors[len(ratios)-1 % len(colors)])
         ratios[-1].SetYTitle("Variation / Archived MC")
         ratios[-1].Draw("E1" if len(ratios) == 1 else "E1 same")
-        legend.AddEntry(ratios[-1], variation, "lep")
+
+        # Calculate and report agreement statistics
+        y_vals = []
+        for i in range(1, ratios[-1].GetNbinsX() + 1):
+            y_vals.append(ratios[-1].GetBinContent(i))
+
+        # Calculate mean and RMS deviation from 1
+        mean_ratio = sum(y_vals) / len(y_vals)
+        rms_deviation = (sum((y - 1)**2 for y in y_vals if y != 0) / len(y_vals))**0.5
+
+        print(f"{variation} vs Archived MC:")
+        print(f"  Mean ratio: {mean_ratio:.3f}")
+        print(f"  RMS deviation from 1: {rms_deviation:.3f}")
+        if rms_deviation < 0.05:
+            print(f"  Agreement: Excellent (RMS < 5%)")
+        elif rms_deviation < 0.1:
+            print(f"  Agreement: Good (RMS < 10%)")
+        else:
+            print(f"  Agreement: Poor (RMS > 10%)")
+        print()
+
+        label = variation
+        if variation != "Archived MC":
+            label += f" (RMS {rms_deviation:.2f})"
+        legend.AddEntry(ratios[-1], label, "lep")
 
     legend.Draw()
 
