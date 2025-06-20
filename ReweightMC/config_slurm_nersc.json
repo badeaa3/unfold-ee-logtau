@@ -13,6 +13,6 @@
 	    "gpu-bind": "none",
 	    "exclusive" : ""
 	},
-        "slurm_time": "5:00:00"
+        "slurm_time": "12:00:00"
     }
 }

@@ -100,6 +100,11 @@ def train(conf):
     weights_folder = os.path.abspath(os.path.join(output_directory, f"./model_weights_{weights_folder_id}"))
     os.makedirs(weights_folder, exist_ok=True)
 
+    # write conf to json in output directory for logging
+    output_conf_name = os.path.abspath(os.path.join(weights_folder, "conf.json"))
+    with open(output_conf_name, 'w') as file:
+      json.dump(conf, file, indent=4)  # indent=4 for pretty printing
+
     # Particle level distribution reweighting 
     aleph_mc = loadDataParticles(
         filePath = mc_paths["ArchivedMC"]["path"],
@@ -176,19 +181,23 @@ if __name__ == "__main__":
     # settings
     top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/"
     top_dir = os.path.abspath(os.path.join(top_dir, f'training-{"%08x" % random.randrange(16**8)}', "%j"))
-    conf = {
-        "output_directory": top_dir,
-        "test_size": 0.2,
-        "lr": 5e-4,
-        "batch_size": 2048,
-        "verbose": True,
-        "maxNPart": 80,
-        "new_mc_name": "Sherpa",
-        "step1_epochs" : 2,
-        "step2_epochs" : 200,
-        "early_stopping_patience" : 20,
-    }
-    confs = [conf]
+    
+    # create configurations
+    confs = []
+    samples = ["Pythia8", "Herwig", "Sherpa"]
+    for sample in samples:
+        confs.append({
+            "output_directory": top_dir,
+            "test_size": 0.2,
+            "lr": 5e-4,
+            "batch_size": 2048,
+            "verbose": True,
+            "maxNPart": 80,
+            "new_mc_name": sample,
+            "step1_epochs" : 2,
+            "step2_epochs" : 200,
+            "early_stopping_patience" : 20,
+        })
 
     # if no slurm config file provided then just launch job
     if args.slurm == None:
