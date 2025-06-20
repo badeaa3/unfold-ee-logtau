@@ -223,6 +223,8 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
             print(f"No ratio plot for {key}")
             continue
         ratio_denom_idx = 0 if plot["y"].shape == ratio_denom[0][0].shape else 1
+        if "ratioidx" in plot.keys():
+            ratio_denom_idx = plot["ratioidx"]
         # plot["ratio_y"] = plot["y"] / (ratio_denom[ratio_denom_idx] + epsilon)
         # get ratio
         if "yerr" in plot.keys():
