@@ -67,6 +67,11 @@ for hist_name in hist_names:
             goodHists.append(False)
             continue
 
+        # only plot gen for some plots
+        if "tgenBefore" in config[i]["file"] and not any(s in hist_name for s in ["logtau", "thrust"]):
+            goodHists.append(False)
+            continue
+
         # general settings
         max_bin_content = 0
         try:

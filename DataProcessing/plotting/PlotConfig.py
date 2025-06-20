@@ -42,6 +42,16 @@ config.append({
     "LineStyle" : 1,
     "LegendDraw" : "l"
 })
+config.append({
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_tgenBefore.root",
+    "legend" : "Archived MC Gen.", # Archived MC
+    "DrawOption" : "HIST",
+    "color" : ROOT.kBlue,
+    "MarkerStyle" : 20,
+    "LineWidth" : 2,
+    "LineStyle" : 1,
+    "LegendDraw" : "l"
+})
 # config.append({
 #     "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_tgenBefore.root",
 #     "legend" : "Archived Pythia 6.1",
@@ -90,17 +100,17 @@ ALEPHTagLowerLeft = 0.3
 plotConfig = {}
 # what we are plotting reduces to the ytitle in terms of sigma: 1/N dN/dX = 1/(sigma * L) d(sigma*L)/dX = 1/sigma d(sigma)/dX
 plotConfig["cosTheta"] = {
-    "SetLogy" : False, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dcos#theta", 
+    "SetLogy" : False, "rebin" : 5, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dcos#theta", 
     "Ndivisions": 505, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 1.5,
     "legloc" : [0.55, 0.85, 0.75, 0.9]
 }
 plotConfig["d0"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dd_{0}", 
+    "SetLogy" : True, "rebin" : 2, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dd_{0}", 
     "Ndivisions": 505, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 10,
     "legloc" : [0.58, 0.85, 0.78, 0.9]
 }
 plotConfig["z0"] = {
-    "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dz_{0}", 
+    "SetLogy" : True, "rebin" : 20, "YTitle": "Fraction of entries", # "1/#sigma d#sigma/dz_{0}", 
     "Ndivisions": 505, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 10,
     "legloc" : [0.58, 0.85, 0.78, 0.9]
 }
@@ -157,7 +167,7 @@ plotConfig["evis"] = {
 plotConfig["logtau"] = {
     "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dlog(#tau)",
     "Ndivisions": 505, "ALEPHTagTop" : ALEPHTagLowerLeft, "scale_max_bin_content" : 5,
-    "legloc" : [0.2, 0.8, 0.4, 0.9]
+    "legloc" : [0.2, 0.75, 0.4, 0.9]
 }
 plotConfig["missP"] = {
     "SetLogy" : True, "rebin" : 10, "YTitle": "Fraction of events", # "1/#sigma d#sigma/d|#vec{p}_{miss}|", 
@@ -187,5 +197,5 @@ plotConfig["sphericity"] = {
 plotConfig["thrust"] = {
     "SetLogy" : True, "rebin" : 1, "YTitle": "Fraction of events", # "1/#sigma d#sigma/dT", 
     "Ndivisions": 505, "ALEPHTagTop" : ALEPHTagUpperLeft, "scale_max_bin_content" : 5,
-    "legloc" : [0.2, 0.8, 0.4, 0.9]
+    "legloc" : [0.2, 0.75, 0.4, 0.9]
 }

@@ -85,11 +85,13 @@ if __name__ == "__main__":
     os.makedirs(outDir, exist_ok=True)
 
     # get list of files
-    dataFileList = config[0]["file"].replace("nominal", "*")
+    dataIdx = 1
+    dataFileList = config[dataIdx]["file"].replace("nominal", "*")
     dataFileList = sorted(glob.glob(dataFileList))
     print(dataFileList)
 
-    mcFileList = config[1]["file"].replace("nominal", "*")
+    mcIdx = 3
+    mcFileList = config[mcIdx]["file"].replace("nominal", "*")
     mcFileList = sorted(glob.glob(mcFileList))
     print(mcFileList)
 
@@ -105,22 +107,22 @@ if __name__ == "__main__":
         print(variation)
 
         # get the ratios
-        ratio_data = get_ratio(config[0]["file"], dataFile)
-        ratio_mc = get_ratio(config[1]["file"], mcFile)
+        ratio_data = get_ratio(config[dataIdx]["file"], dataFile)
+        ratio_mc = get_ratio(config[mcIdx]["file"], mcFile)
 
         # Create a new canvas for each histogram
         canvas = ALEPHCanvas(f"c_xyz")
 
         # legend
-        legend = ALEPHLegend(loc=[0.58, 0.25, 0.78, 0.35], textsize=0.04) 
+        legend = ALEPHLegend(loc=[0.5, 0.2, 0.7, 0.28], textsize=0.03) 
 
         # draw
         ratio_data.Draw("E1")
         ratio_mc.Draw("E1 same")
 
         # add to legend
-        legend.AddEntry(ratio_data, "Data", "p")
-        legend.AddEntry(ratio_mc, "Archived MC", "p")
+        legend.AddEntry(ratio_data, "Uncorrected data", "pl")
+        legend.AddEntry(ratio_mc, "Selected archived MC Reco.", "p")
 
         legend.Draw()
 
