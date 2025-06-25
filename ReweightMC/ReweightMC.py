@@ -141,10 +141,10 @@ def train(conf):
         num_feat = aleph_mc.shape[2], 
         num_evt = 0, 
         num_part = conf["maxNPart"], 
-        num_heads = 1, 
-        num_transformer = 1, 
+        num_heads = 2, 
+        num_transformer = 2, 
         local = False,
-        projection_dim = 64
+        projection_dim = 32
     )
 
     # training settings
@@ -226,66 +226,3 @@ if __name__ == "__main__":
                 job = executor.submit(train, conf) # **conf
                 jobs.append(job)
 
-    # # training settings
-    # test_size = 0.2
-    # lr = 5e-4
-    # batch_size = 512
-    # verbose = True
-    # top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/"
-    # weights_folder = os.path.join(top_dir, f'training-{"%08x" % random.randrange(16**8)}') # "./"
-    # os.makedirs(weights_folder, exist_ok=True)
-    # new_mc_name = "PYTHIA8"
-    # maxNPart = 80
-
-    # # Particle level distribution reweighting 
-    # aleph_mc = loadDataParticles(
-    #     filePath = mc_paths["ArchivedPYTHIA6"]["path"],
-    #     treeName = mc_paths["ArchivedPYTHIA6"]["tree"],
-    #     branches = mc_paths["ArchivedPYTHIA6"]["branches"],
-    #     maxNPart = maxNPart
-    # )
-    # print(aleph_mc.shape)
-    # new_mc = loadDataParticles(
-    #     filePath = mc_paths[new_mc_name]["path"], 
-    #     treeName = mc_paths[new_mc_name]["tree"],
-    #     branches = mc_paths[new_mc_name]["branches"],
-    #     maxNPart = maxNPart
-    # )
-    # print(new_mc.shape)
-
-    # # prepare datasets
-    # train_dataset_step1, val_dataset_step1 = create_train_val_datasets(data_0=aleph_mc, data_1=aleph_mc, test_size=test_size, batch_size=batch_size, normalize=True)
-    # train_dataset_step2, val_dataset_step2 = create_train_val_datasets(data_0=aleph_mc, data_1=new_mc, test_size=test_size, batch_size=batch_size, normalize=True)
-
-    # # prepare PET network
-    # model = omnifold.PET(
-    #     num_feat = aleph_mc.shape[2], 
-    #     num_evt = 0, 
-    #     num_part = maxNPart, 
-    #     num_heads = 1, 
-    #     num_transformer = 1, 
-    #     local = False,
-    #     projection_dim = 64
-    # )
-
-    # # training settings
-    # opt = tf.keras.optimizers.Adam(learning_rate=lr)
-    # model.compile(opt, loss = omnifold.net.weighted_binary_crossentropy)
-    # callbacks = [
-    #     ReduceLROnPlateau(patience=1000, min_lr=1e-7, verbose=verbose, monitor="val_loss"),
-    #     EarlyStopping(patience=10, restore_best_weights=True,  monitor="val_loss"),
-    # ]
-
-    # # Step 1 pretrain the model to get it to unity
-    # model_name = os.path.join(weights_folder, f'Reweight_Step1.weights.h5')
-    # callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
-    # print("Running Step 1 (pre-train reweight aleph to aleph) with model name: ", model_name)
-    # epochs = 2
-    # hist = doFitAndEvaluate(model, train_dataset_step1, val_dataset_step1, epochs, verbose, callbacks, model_name, aleph_mc) 
-
-    # # Step 2 train the model for reweighting
-    # model_name = os.path.join(weights_folder, f'Reweight_Step2.weights.h5')
-    # callbacks.append(ModelCheckpoint(model_name, save_best_only=True, mode='auto', save_weights_only=True))
-    # print("Running Step 2 (reweight aleph to new mc) with model name: ", model_name)
-    # epochs = 50
-    # hist = doFitAndEvaluate(model, train_dataset_step2, val_dataset_step2, epochs, verbose, callbacks, model_name, aleph_mc)

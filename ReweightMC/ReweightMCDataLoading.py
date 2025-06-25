@@ -75,6 +75,10 @@ def convert_PxPyPz_to_EtaPhiPmag(x):
     phi = np.arctan2(py, px)
     out = np.stack([eta, phi, pmag], axis=-1)
 
+    # if theta = 0 then eta can be inf. Fix this to be 999. Just apply fix everywhere just in case
+    out[np.isposinf(out)] = 999.0  # replace inf with a large number, e.g., 999
+    out[np.isneginf(out)] = -999.0  # replace -inf with a large number, e.g., -999
+
     return out
 
 def create_train_val_datasets(data_0, data_1, test_size=0.2, batch_size=512, normalize=True, standardize=False):
