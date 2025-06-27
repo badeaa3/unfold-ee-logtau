@@ -225,9 +225,9 @@ if __name__ == "__main__":
     # add configurations for theory uncertainty scan
     if args.run_theory_uncert:
       theory_variations = [
-        # ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-0eeee3d7/609ff241/model_weights_b22f1cf8/Reweight_Step2.reweight.npy"] # without gen cleaning
-        # ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-dcb1df64/38187555/model_weights_fe518abe/Reweight_Step2.reweight.npy"] # with gen cleaning
-        ["Sherpa", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-4a02ce97/39426550/model_weights_1afea5d3/Reweight_Step2.reweight.npy"]
+        ["Pythia8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_0/model_weights_b7634c53/Reweight_Step2.reweight.npy"],
+        ["Herwig", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_1/model_weights_cc44b19d/Reweight_Step2.reweight.npy"],
+        ["Sherpa", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_2/model_weights_afd3a072/Reweight_Step2.reweight.npy"]
       ]
       for i in range(n_systematics):
         for name, inFileName in theory_variations:
