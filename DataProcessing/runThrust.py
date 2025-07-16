@@ -226,7 +226,11 @@ def main():
     # Get file configuration and create variations
     file_config = get_file_config(ops.inFile)
     variations = create_selection_variations()
-    
+
+    # only run nominal
+    if ops.nominalOnly:
+        variations = [variations[1]]
+        
     total_trees = len(file_config['treeNames'])
     print(f"Running {len(variations)} selection variations with {total_trees} trees each, {ops.ndivs} divisions per tree")
     
@@ -243,6 +247,7 @@ def parse_arguments():
     parser.add_argument("-j", "--ncpu", type=int, default=1, help="Number of cores to use for multiprocessing (default: 1)")
     parser.add_argument("--dryrun", action="store_true", help="Print commands without executing them")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode in Thrust.exe")
+    parser.add_argument("--nominalOnly", action="store_true", help="Only run the nominal selection variation")
     return parser.parse_args()
 
 if __name__ == "__main__":

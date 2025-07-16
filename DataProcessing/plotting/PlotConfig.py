@@ -3,7 +3,7 @@ import ROOT
 # config
 config = []
 config.append({
-    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/LEP1Data1994_recons_aftercut-MERGED_thrust_no_event_sel_t.root",
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250625/2/LEP1Data1994_recons_aftercut-MERGED_thrust_no_event_sel_t.root",
     "legend" : "All uncorrected data", # Data 1994
     "color" : ROOT.kBlack,
     "DrawOption" : "PE",
@@ -13,7 +13,7 @@ config.append({
     "LegendDraw" : "pl"
 })
 config.append({
-    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/LEP1Data1994_recons_aftercut-MERGED_thrust_nominal_t.root",
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250625/2/LEP1Data1994_recons_aftercut-MERGED_thrust_nominal_t.root",
     "legend" : "Selected uncorrected data", # Data 1994
     "color" : ROOT.kBlack,
     "DrawOption" : "PE",
@@ -23,7 +23,7 @@ config.append({
     "LegendDraw" : "pl"
 })
 config.append({
-    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_t.root",
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250625/2/alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_t.root",
     "legend" : "All archived MC Reco.", # Archived MC
     "DrawOption" : "HIST",
     "color" : ROOT.kRed,
@@ -33,7 +33,7 @@ config.append({
     "LegendDraw" : "l"
 })
 config.append({
-    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250527/2/alephMCRecoAfterCutPaths_1994_thrust_nominal_t.root",
+    "file" : "/data/abadea/e+e-/aleph/unfold-ee-logtau/DataProcessing/20250625/2/alephMCRecoAfterCutPaths_1994_thrust_nominal_t.root",
     "legend" : "Selected archived MC Reco.", # Archived MC
     "DrawOption" : "HIST",
     "color" : ROOT.kRed,

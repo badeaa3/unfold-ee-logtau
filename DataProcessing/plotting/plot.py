@@ -107,8 +107,8 @@ for hist_name in hist_names:
         hist.SetYTitle(pltConfig["YTitle"] + f" / {units}")
 
         # normalize
+        hist.Sumw2()
         if hist.Integral() > 0:
-            hist.Sumw2()
             scale = XBinWidth * hist.Integral()
             hist.Scale(1.0 / scale)
 

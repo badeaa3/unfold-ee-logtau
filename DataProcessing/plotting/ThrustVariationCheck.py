@@ -14,7 +14,7 @@ SetALEPHStyle()
 hist_name = "logtau"
 pltConfig = plotConfig[hist_name]
 
-def get_ratio(numeratorFilePath, denominatorFilePath):
+def get_ratio(numeratorFilePath, denominatorFilePath, hist_name="logtau"):
     """
     Get the ratio of two histograms from different files.
     """

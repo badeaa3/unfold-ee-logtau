@@ -26,18 +26,34 @@ if __name__ == "__main__":
     # Create a new canvas for each histogram
     canvas = ALEPHCanvas(f"c_xyz")
 
+    # zoom in and out versions
+    zoomIn = False
+    xrange = [-8, 0]
+    if zoomIn:
+        loc = [0.6, 0.2, 0.7, 0.3]
+        yrange = [0.45, 1.9]
+    else:
+        loc = [0.6, 0.75, 0.75, 0.85]
+        yrange = [0.1, 15]
+    
     # Create a legend
-    legend = ALEPHLegend(loc=[0.55, 0.25, 0.75, 0.4], textsize=0.03) 
+    legend = ALEPHLegend(loc=loc, textsize=0.03)  # 
 
     ratios = []
     # Add variations to the legend
     for variation, file in variations.items():
+        if variation == "Archived MC":
+            continue
         ratios.append(get_ratio(file, variations["Archived MC"]))
         # Set color cycling through predefined colors
         colors = [ROOT.kBlack, ROOT.kRed, ROOT.kBlue, ROOT.kGreen+2]
         ratios[-1].SetMarkerColor(colors[len(ratios)-1 % len(colors)])
+        ratios[-1].SetMarkerSize(0.8)
+        ratios[-1].SetMarkerStyle(20)
         ratios[-1].SetLineColor(colors[len(ratios)-1 % len(colors)])
         ratios[-1].SetYTitle("Variation / Archived MC")
+        ratios[-1].GetYaxis().SetRangeUser(yrange[0], yrange[1])
+        ratios[-1].GetXaxis().SetRangeUser(xrange[0], xrange[1])
         ratios[-1].Draw("E1" if len(ratios) == 1 else "E1 same")
 
         # Calculate and report agreement statistics
@@ -68,7 +84,7 @@ if __name__ == "__main__":
     legend.Draw()
 
     # Draw a dashed light gray horizontal line at y=1
-    line = ROOT.TLine(ratios[0].GetXaxis().GetXmin(), 1, ratios[0].GetXaxis().GetXmax(), 1)
+    line = ROOT.TLine(xrange[0], 1, xrange[1], 1)
     line.SetLineColor(ROOT.kGray + 1)
     line.SetLineStyle(2)  # Dashed line
     line.SetLineWidth(3)
@@ -78,7 +94,8 @@ if __name__ == "__main__":
     myText(0.165, 0.97, header, size=0.03)
         
     # Save to individual PDF
-    pdf_name = os.path.join(f"logtau_check_gen_theory_variation.pdf")
+    extension = "ZoomIn" if zoomIn else "ZoomOut"
+    pdf_name = os.path.join(f"logtau_check_gen_theory_variation_{extension}.pdf")
     canvas.Print(pdf_name)
     print(f"Saved: {pdf_name}")
 
