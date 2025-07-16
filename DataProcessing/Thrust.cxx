@@ -396,6 +396,17 @@ int main(int argc, char* argv[]) {
           && (TMath::Abs(d0[iP]) <= selMap["d0Cut"])
           && (TMath::Abs(z0[iP]) <= selMap["z0Cut"])
           && (ntpc[iP] >= selMap["nTPCcut"]);
+
+	// additional checks on charged tracks
+	// bool cleanChargedTracksHighPT = (pwflag[iP] == 0) && (pt[iP] >= 45);
+	// passChgTrkSel = passChgTrkSel && !cleanChargedTracksHighPT;
+
+	// bool cleanLeptons1HighPT = (pwflag[iP] == 1) && (pt[iP] >= 40);
+	// passChgTrkSel = passChgTrkSel && !cleanLeptons1HighPT;
+	
+	// bool cleanLeptons2HighPT = (pwflag[iP] == 2) &&	(pt[iP] >= 40);
+	// passChgTrkSel = passChgTrkSel && !cleanLeptons2HighPT;
+	
 	if(passChgTrkSel && selMap["keepChargedTracks"]){
 	  if (debug) std::cout << "Passed charged track selection" << std::endl;
 	  saveParticle = true;
@@ -403,12 +414,17 @@ int main(int argc, char* argv[]) {
 	  EVis += energy;
 	  NTrk += 1;
 	}
-	
+
         // neutral particle selections
         bool passNeuPartSel =
-          (pwflag[iP] == 4 || pwflag[iP] == 5)
+          (pwflag[iP] >= 3 && pwflag[iP] <= 5)
           && (energy >= selMap["ECut"])
           && (TMath::Abs(cos(theta[iP])) <= selMap["neutralTracksAbsCosThCut"]);
+
+	// add cleaning for data neutral hadrons (pwflag 5) -0.19 <= cos(theta) < -0.18
+	bool cleanDataNeutralHadron = (pwflag[iP] == 5) && (-0.19 <= cos(theta[iP]) && cos(theta[iP]) < -0.18);
+	passNeuPartSel = passNeuPartSel && !cleanDataNeutralHadron;
+	
 	if(passNeuPartSel && selMap["keepNeutralTracks"]){
 	  if (debug) std::cout << "Passed neutral track selection" << std::endl;
 	  saveParticle = true;
