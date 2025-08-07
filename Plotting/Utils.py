@@ -109,7 +109,7 @@ def loadALEPH2004Result(hepData = "/global/homes/b/badea/aleph/data/HEPData-ins6
     aleph_thrust_errs = np.linalg.norm(aleph_thrust_errs_individual, axis=1)
     assert np.all(aleph_bins[1:] == 1 - hepdata[::-1,1]) and np.all(aleph_bins[:-1] == 1 - hepdata[::-1,2])
     
-    log_bins_min = -8 # aleph reported linear binning down to 0 but can't do that for log, so must pick a lower bound. Found that beyond this no more stats
+    log_bins_min = -6 # aleph reported linear binning down to 0 but can't do that for log, so must pick a lower bound. Found that beyond this no more stats
     # aleph_log_bins = np.log(aleph_bins + np.exp(log_bins_min)) # before we used this but this is confusing. For the lowest (1-T) bin with a lower bin edge of 0 we just want to modify the left bin edge but not the right. Instead use the below.
     aleph_log_bins = np.log(aleph_bins)
     aleph_log_bins[0] =  log_bins_min
@@ -187,7 +187,7 @@ def ratio_with_uncertainty(A, B, A_err=None, B_err=None):
 
 def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$^{+}$e$^{-}$, $\sqrt{s}$ = 91.2 GeV"):
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3.5, 1]}, figsize=(4,4))
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3.5, 1]}, figsize=style["figsize"])
     plt.subplots_adjust(hspace=0)
 
     # plot error bar plots
@@ -202,10 +202,11 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 xerr = plot["xerr"], 
                 yerr = plot["yerr"], 
                 fmt='o', 
-                lw=2, 
-                capsize=1.5, 
+                lw=plot.get("lw", 2), 
+                capsize=plot.get("capsize", 3), 
                 capthick=1, 
-                markersize=1.5
+                markersize=plot.get("markersize", 1.5),
+                alpha=plot.get("alpha", 1)
             )
         elif plot["plotType"] == "stairs":
             ax1.stairs(
@@ -214,12 +215,12 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 label=plot["label"], 
                 color=plot["color"],
                 ls=plot["ls"],
-                lw=1.5
+                lw=2
             )
 
     # plot ratios
     for key, plot in inPlots.items():
-        if "noratio" in plot.keys():
+        if "noratio" in plot.keys() and plot["noratio"] == True:
             print(f"No ratio plot for {key}")
             continue
         ratio_denom_idx = 0 if plot["y"].shape == ratio_denom[0][0].shape else 1
@@ -241,7 +242,11 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 yerr = plot["ratio_yerr"], 
                 fmt = 'o', 
                 color = plot["color"],  
-                markersize = 1.5
+                lw=plot.get("lw", 2), 
+                capsize=plot.get("capsize", 3), 
+                capthick=1, 
+                markersize=plot.get("markersize", 1.5),
+                alpha=plot.get("alpha", 1)
             )
         elif plot["plotType"] == "stairs":
             ax2.plot(
@@ -249,7 +254,7 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 plot["ratio_y"], 
                 color = plot["color"],
                 ls = plot["ls"],
-                lw=1.5
+                lw=2
             )
 
     # ratio horizontal line
@@ -262,23 +267,26 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                fontsize = style["legend_fontsize"])
     
     # axis settings
-    ax1.set_ylabel(style["ax1_ylabel"], fontsize=14)
+    ax1.set_ylabel(style["ax1_ylabel"], fontsize=18)
     ax1.set_yscale(style["ax1_yscale"])
-    ax2.set_xlabel(style["ax2_xlabel"], fontsize=14, labelpad=8)
+    ax2.set_xlabel(style["ax2_xlabel"], fontsize=18, labelpad=8)
     ax2.set_xscale(style["ax2_xscale"])
-    ax2.set_ylabel(style["ax2_ylabel"], fontsize=12)
+    ax2.set_ylabel(style["ax2_ylabel"], fontsize=14)
 
     # set limits
     # ax1.set_ylim(0.2*10**-5, 10**0)
     ax1.set_ylim(style["ax1_ylim"][0], style["ax1_ylim"][1])
-    ax2.set_xlim(style["bins"][0], style["bins"][-1])
+    if "ax2_xlim" in style.keys() and style["ax2_xlim"] is not None:
+        ax2.set_xlim(style["ax2_xlim"][0], style["ax2_xlim"][1])
+    else:
+        ax2.set_xlim(style["bins"][0], style["bins"][-1])
     ax2.set_ylim(style["ax2_ylim"][0], style["ax2_ylim"][1])
 
-    ax1.tick_params(axis='both', which='major', labelsize=13)
-    ax2.tick_params(axis='both', which='major', labelsize=13)
+    ax1.tick_params(axis='both', which='major', labelsize=15)
+    ax2.tick_params(axis='both', which='major', labelsize=15)
 
     # top text
-    ax1.text(0, 1, header, transform=ax1.transAxes, ha='left', va='bottom', fontsize=8)
+    ax1.text(0, 1, header, transform=ax1.transAxes, ha='left', va='bottom', fontsize=style["header_fontsize"])
 
     return fig, (ax1, ax2)
 

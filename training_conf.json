@@ -1,5 +1,5 @@
 {
-    "storage" : "/global/cfs/cdirs/m3246/aleph/derivations/20250527",
+    "storage" : "/global/cfs/cdirs/m3246/aleph/derivations/20250625/2",
     "data" : "LEP1Data1994_recons_aftercut-MERGED_thrust_nominal_t.root",
     "reco" : "alephMCRecoAfterCutPaths_1994_thrust_nominal_t.root",
     "gen" : "alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_tgenBefore.root",
