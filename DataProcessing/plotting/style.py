@@ -76,11 +76,11 @@ def aleph_style_settings():
 def ALEPHCanvas(name):
     return ROOT.TCanvas(f"c_{name}", name, 50, 50, 600, 600)
 
-def ALEPHLegend():
-    legend = ROOT.TLegend(0.68, 0.8, 0.88, 0.9)
+def ALEPHLegend(loc=[0.68, 0.8, 0.88, 0.9], textsize=0.04):
+    legend = ROOT.TLegend(loc[0], loc[1], loc[2], loc[3]) # 0.68, 0.8, 0.88, 0.9)
     legend.SetFillStyle(0)
     legend.SetBorderSize(0)
-    legend.SetTextSize(0.04)
+    legend.SetTextSize(textsize)
     return legend 
 
 
