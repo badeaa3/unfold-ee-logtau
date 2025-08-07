@@ -181,7 +181,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # create top level output directory
-    top_dir = os.path.abspath(os.path.join("results", f'training-{"%08x" % random.randrange(16**8)}', "%j"))
+    top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/UniFold/results/"
+    top_dir = os.path.abspath(os.path.join(top_dir, f'training-{"%08x" % random.randrange(16**8)}', "%j"))
 
     with open("training_conf.json") as f:
       training_conf = json.load(f)
@@ -211,12 +212,12 @@ if __name__ == "__main__":
     if args.run_systematics:
       for i in range(n_systematics):
 
-        # sysematic variation
-        # 1 = nominal, 2 onwards = variations
-        SystematicVariationList = [2, 3, 4, 5, 6] # according to the order in DataProcessing/Thrust.cxx
+        # sysematic variations
+        SystematicVariationList = ["ntpc7", "pt04", "ech10", "no_neutrals", "with_met"]
         for SystematicVariation in SystematicVariationList:
           temp = training_conf.copy()
-          temp["SystematicVariation"] = SystematicVariation
+          temp["data"] = temp["data"].replace("nominal", SystematicVariation)
+          temp["reco"] = temp["reco"].replace("nominal", SystematicVariation)
           temp["job_type"] = "Systematics"
           temp["i_ensemble_per_omnifold"] = i
           confs.append(temp)
@@ -224,8 +225,9 @@ if __name__ == "__main__":
     # add configurations for theory uncertainty scan
     if args.run_theory_uncert:
       theory_variations = [
-        # ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-0eeee3d7/609ff241/model_weights_b22f1cf8/Reweight_Step2.reweight.npy"] # without gen cleaning
-        ["PYTHIA8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-dcb1df64/38187555/model_weights_fe518abe/Reweight_Step2.reweight.npy"] # with gen cleaning
+        ["Pythia8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_0/model_weights_b7634c53/Reweight_Step2.reweight.npy"],
+        ["Herwig", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_1/model_weights_cc44b19d/Reweight_Step2.reweight.npy"],
+        ["Sherpa", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_2/model_weights_afd3a072/Reweight_Step2.reweight.npy"]
       ]
       for i in range(n_systematics):
         for name, inFileName in theory_variations:
@@ -256,7 +258,7 @@ if __name__ == "__main__":
         confs.append(temp)
     
     # add configurations for ensembling
-    total_n_ensembles = 10 # 200
+    total_n_ensembles = 10 # 1 nominal + 10 ensembles = 11, N=10 -> 11*10 = 110 trainings 
     n_ensembles = math.ceil(total_n_ensembles / n_training_per_node)
     if args.run_ensembling:
       for i in range(n_ensembles):
