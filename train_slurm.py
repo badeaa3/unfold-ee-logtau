@@ -178,10 +178,11 @@ if __name__ == "__main__":
     parser.add_argument('--run_hyperparameter_scan', action='store_true', default=False, help='Run the hyperparameter scan')
     parser.add_argument('--run_niter_scan', action='store_true', default=False, help='Run the number of iteration scan based on the optimized hyperparameters')
     parser.add_argument('--run_theory_uncert', action='store_true', default=False, help='Run the theory uncertainty scan')
+    parser.add_argument('--top_dir', help="Top level directory for storing data. Default to nersc directory", default="/pscratch/sd/b/badea/aleph/unfold-ee-logtau/UniFold/results/")
     args = parser.parse_args()
 
     # create top level output directory
-    top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/UniFold/results/"
+    top_dir = args.top_dir
     top_dir = os.path.abspath(os.path.join(top_dir, f'training-{"%08x" % random.randrange(16**8)}', "%j"))
 
     with open("training_conf.json") as f:
@@ -206,9 +207,13 @@ if __name__ == "__main__":
     # list of configurations to launch
     confs = []
 
+    # trainings per ensemble
+    N_trainings_per_ensemble = 10
+
     # add configurations for track and event selection systematic variations
-    total_n_systematics = 10 # closest to 10 which divides by 4
-    n_systematics = math.ceil(total_n_systematics / n_training_per_node)
+    # total_n_systematics = 10 # closest to 10 which divides by 4
+    # n_systematics = math.ceil(total_n_systematics / n_training_per_node)
+    n_systematics = N_trainings_per_ensemble
     if args.run_systematics:
       for i in range(n_systematics):
 
@@ -224,10 +229,12 @@ if __name__ == "__main__":
 
     # add configurations for theory uncertainty scan
     if args.run_theory_uncert:
+      # theory_variation_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/"
+      theory_variation_dir = "/home/badea/e+e-/aleph/UnfoldThrustResults/theory_reweighting/training-200471c7/"
       theory_variations = [
-        ["Pythia8", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_0/model_weights_b7634c53/Reweight_Step2.reweight.npy"],
-        ["Herwig", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_1/model_weights_cc44b19d/Reweight_Step2.reweight.npy"],
-        ["Sherpa", "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/39912440_2/model_weights_afd3a072/Reweight_Step2.reweight.npy"]
+        ["Pythia8", os.path.join(theory_variation_dir, "39912440_0/model_weights_b7634c53/Reweight_Step2.reweight.npy")],
+        ["Herwig", os.path.join(theory_variation_dir, "39912440_1/model_weights_cc44b19d/Reweight_Step2.reweight.npy")],
+        ["Sherpa", os.path.join(theory_variation_dir, "39912440_2/model_weights_afd3a072/Reweight_Step2.reweight.npy")]
       ]
       for i in range(n_systematics):
         for name, inFileName in theory_variations:
@@ -238,8 +245,9 @@ if __name__ == "__main__":
           confs.append(temp)
 
     # bootstrap mc
-    total_n_bootstraps_mc = 40
-    n_bootstraps_mc = math.ceil(total_n_bootstraps_mc / n_training_per_node)
+    # total_n_bootstraps_mc = 40
+    # n_bootstraps_mc = math.ceil(total_n_bootstraps_mc / n_training_per_node)
+    n_bootstraps_mc = 4*N_trainings_per_ensemble
     if args.run_bootstrap_mc:
       for i in range(n_bootstraps_mc):
         temp = training_conf.copy()
@@ -248,8 +256,9 @@ if __name__ == "__main__":
         confs.append(temp)
 
     # bootstrap data
-    total_n_bootstraps_data = 40
-    n_bootstraps_data = math.ceil(total_n_bootstraps_data / n_training_per_node)
+    # total_n_bootstraps_data = 40
+    # n_bootstraps_data = math.ceil(total_n_bootstraps_data / n_training_per_node)
+    n_bootstraps_data = 4*N_trainings_per_ensemble
     if args.run_bootstrap_data:
       for i in range(n_bootstraps_data):
         temp = training_conf.copy()
@@ -258,8 +267,9 @@ if __name__ == "__main__":
         confs.append(temp)
     
     # add configurations for ensembling
-    total_n_ensembles = 10 # 1 nominal + 10 ensembles = 11, N=10 -> 11*10 = 110 trainings 
-    n_ensembles = math.ceil(total_n_ensembles / n_training_per_node)
+    # total_n_ensembles = 10 # 1 nominal + 10 ensembles = 11, N=10 -> 11*10 = 110 trainings 
+    # n_ensembles = math.ceil(total_n_ensembles / n_training_per_node)
+    n_ensembles = 10*N_trainings_per_ensemble
     if args.run_ensembling:
       for i in range(n_ensembles):
         temp = training_conf.copy()
