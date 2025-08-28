@@ -4,8 +4,8 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 
-def loadWeightPaths(file_pattern):
-    fileList = sorted(glob.glob(file_pattern))
+def loadWeightPaths(fileList): #file_pattern):
+    # fileList = sorted(glob.glob(file_pattern))
     d = {}
 
     for file_path in fileList:
