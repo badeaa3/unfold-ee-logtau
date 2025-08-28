@@ -4,8 +4,8 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 
-def loadWeightPaths(file_pattern):
-    fileList = glob.glob(file_pattern)
+def loadWeightPaths(fileList): #file_pattern):
+    # fileList = sorted(glob.glob(file_pattern))
     d = {}
 
     for file_path in fileList:
@@ -29,17 +29,17 @@ def loadWeightPaths(file_pattern):
 def loadWeights(inPath):
     
     if type(inPath) == str:
-        pathList = glob.glob(inPath)
+        pathList = sorted(glob.glob(inPath))
     if type(inPath) == list:
         pathList = inPath
 
     weights = {}
     for base_path in pathList:
 
-        # pick up the weights
-        omnifold_weights_path = glob.glob(os.path.join(base_path,"omnifold_weights*"))
-        if len(omnifold_weights_path) > 0:
-            omnifold_weights = np.load(omnifold_weights_path[0])
+        # pick up the omnifold weights
+        omnifold_weights_path = os.path.join(base_path, "omnifold_weights.npy")
+        if os.path.isfile(omnifold_weights_path):
+            omnifold_weights = np.load(omnifold_weights_path)
         else:
             print(f"No omnifold weights in {base_path}")
             continue
