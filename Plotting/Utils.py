@@ -215,7 +215,7 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 label=plot["label"], 
                 color=plot["color"],
                 ls=plot["ls"],
-                lw=2
+                lw=plot.get("lw", 2)
             )
 
     # plot ratios
@@ -254,7 +254,7 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 plot["ratio_y"], 
                 color = plot["color"],
                 ls = plot["ls"],
-                lw=2
+                lw = plot.get("lw", 2)
             )
 
     # ratio horizontal line
@@ -275,7 +275,8 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
 
     # set limits
     # ax1.set_ylim(0.2*10**-5, 10**0)
-    ax1.set_ylim(style["ax1_ylim"][0], style["ax1_ylim"][1])
+    if "ax1_ylim" in style.keys() and style["ax1_ylim"] is not None:
+        ax1.set_ylim(style["ax1_ylim"][0], style["ax1_ylim"][1])
     if "ax2_xlim" in style.keys() and style["ax2_xlim"] is not None:
         ax2.set_xlim(style["ax2_xlim"][0], style["ax2_xlim"][1])
     else:
