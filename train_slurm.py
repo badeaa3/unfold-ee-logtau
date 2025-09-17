@@ -29,6 +29,28 @@ import dataloader
 # omnifold
 import omnifold
 
+# print all imported package versions
+def print_environment():
+
+  print("TensorFlow version:", tf.__version__)
+
+  # Get OmniFold version via importlib.metadata
+  try:
+      from importlib.metadata import version, PackageNotFoundError  # Python 3.8+
+  except ImportError:
+      from importlib_metadata import version, PackageNotFoundError  # backport
+
+  try:
+      omni_ver = version("omnifold")
+  except PackageNotFoundError:
+      omni_ver = "not found"
+
+  # Optionally, show the module path
+  omni_path = omnifold.__file__
+
+  print("OmniFold version:", omni_ver)
+  print("OmniFold path:", omni_path)
+
 # SLURM sets CUDA_VISIBLE_DEVICES, so only the allocated GPU is visible to the task
 # gpu_id = os.environ.get('CUDA_VISIBLE_DEVICES')
 # print(f"Assigned GPU: {gpu_id}")
@@ -62,7 +84,21 @@ def train(
     gpu_id = os.environ.get('CUDA_VISIBLE_DEVICES')
     print(f"Assigned GPU: {gpu_id}")
     
+    # print environment in all logs
+    print_environment()
+
+    # print conf
     print(conf)
+
+    # print random seed information
+    print("SLURM_JOBID:", os.environ.get("SLURM_JOBID"))
+    print("SLURM_ARRAY_TASK_ID:", os.environ.get("SLURM_ARRAY_TASK_ID"))
+    # Check Python's built-in RNG
+    print("Python random sample:", random.random())
+    # Check NumPy RNG
+    print("NumPy random sample:", np.random.rand())
+    # Check TensorFlow RNG
+    print("TensorFlow random sample:", tf.random.uniform((1,)))
     
     # update %j with actual job number
     output_directory = conf["output_directory"]
@@ -208,7 +244,7 @@ if __name__ == "__main__":
     confs = []
 
     # trainings per ensemble
-    N_trainings_per_ensemble = 10
+    N_trainings_per_ensemble = 100
 
     # add configurations for track and event selection systematic variations
     # total_n_systematics = 10 # closest to 10 which divides by 4
@@ -247,7 +283,7 @@ if __name__ == "__main__":
     # bootstrap mc
     # total_n_bootstraps_mc = 40
     # n_bootstraps_mc = math.ceil(total_n_bootstraps_mc / n_training_per_node)
-    n_bootstraps_mc = 4*N_trainings_per_ensemble
+    n_bootstraps_mc = 5*N_trainings_per_ensemble
     if args.run_bootstrap_mc:
       for i in range(n_bootstraps_mc):
         temp = training_conf.copy()
@@ -258,7 +294,7 @@ if __name__ == "__main__":
     # bootstrap data
     # total_n_bootstraps_data = 40
     # n_bootstraps_data = math.ceil(total_n_bootstraps_data / n_training_per_node)
-    n_bootstraps_data = 4*N_trainings_per_ensemble
+    n_bootstraps_data = 5*N_trainings_per_ensemble
     if args.run_bootstrap_data:
       for i in range(n_bootstraps_data):
         temp = training_conf.copy()

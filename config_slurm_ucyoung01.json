@@ -1,11 +1,13 @@
 {
     "submitit": true,
     "slurm": {
-        "slurm_partition": "debug",
+        "slurm_partition": "ucyoung01",
         "slurm_job_name": "sample",
         "slurm_nodes": 1,
         "slurm_time": "12:00:00",
-        "slurm_mem_per_cpu": 1000,
+	"slurm_cpus_per_task" : 1,
+        "slurm_mem_per_cpu": 6000,
+	"slurm_array_parallelism" : 20,
         "slurm_additional_parameters": {
             "export": "ALL"
         }

@@ -3,13 +3,16 @@ import numpy as np
 import awkward as ak
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
+import os
 
 # file paths
+# top_mc_path = "/global/cfs/cdirs/m3246/aleph/derivations/20250527/"
+top_mc_path = "/home/badea/e+e-/aleph/derivations/20250527/"
 mc_paths = {
-        "ArchivedMC" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
-        "Pythia8" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/LEP1_PYTHIA8_MC_TGenBefore_NoISR_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
-        "Herwig" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/Herwig_noISR_ALL_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
-        "Sherpa" : {"path": "/global/cfs/cdirs/m3246/aleph/derivations/20250527/Sherpa_noISR_ALL_thrust_no_event_sel_tgenBefore.root", "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
+        "ArchivedMC" : {"path": os.path.join(top_mc_path, "alephMCRecoAfterCutPaths_1994_thrust_no_event_sel_tgenBefore.root"), "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
+        "Pythia8" : {"path": os.path.join(top_mc_path, "LEP1_PYTHIA8_MC_TGenBefore_NoISR_thrust_no_event_sel_tgenBefore.root"), "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
+        "Herwig" : {"path": os.path.join(top_mc_path, "Herwig_noISR_ALL_thrust_no_event_sel_tgenBefore.root"), "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
+        "Sherpa" : {"path": os.path.join(top_mc_path, "Sherpa_noISR_ALL_thrust_no_event_sel_tgenBefore.root"), "tree" : "tgenBefore", "branches" : ["px", "py", "pz"]},
 }
 
 def expit(x):
