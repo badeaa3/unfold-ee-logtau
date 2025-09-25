@@ -118,7 +118,7 @@ def unfold(
     # apply theory reweighting
     if "theory_variation_weights_path" in conf.keys():
         print("Using theory variation weights")
-        theory_variation_weights = np.load(conf["theory_variation_weights_path"])
+        theory_variation_weights = np.load(conf["theory_variation_weights_path"]) # need to update this since the reweighting is applied to the genBefore events so the weights_mc[mc_reco_mask] crashes
         weights_mc = theory_variation_weights
 
     # get the histograms for selected events
@@ -194,7 +194,6 @@ if __name__ == "__main__":
             temp["data"] = temp["data"].replace("nominal", SystematicVariation)
             temp["reco"] = temp["reco"].replace("nominal", SystematicVariation)
             temp["job_type"] = "Systematics"
-            temp["i_ensemble_per_omnifold"] = i
             confs.append(temp)
 
     # add configurations for theory uncertainty scan
@@ -209,7 +208,6 @@ if __name__ == "__main__":
       for name, inFileName in theory_variations:
           temp = training_conf.copy()
           temp["job_type"] = f"TheoryUncertainty_{name}"
-          temp["i_ensemble_per_omnifold"] = i
           temp["theory_variation_weights_path"] = inFileName
           confs.append(temp)
 
