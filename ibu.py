@@ -46,3 +46,34 @@ def ibu_unc(data_hist, response, mc_gen, binwidth_det, bins_mc, binwidth_mc, it=
 
     # return the standard deviation, bin-by-bin, as the uncertainty
     return np.std(np.asarray(rephis), axis=0)
+
+
+def ibu_covariance(data, r, init, det_bw, mc_bw, cov_data, it=10):
+    """
+    Compute full covariance of the unfolded spectrum
+    due to statistical (Poisson) uncertainties in 'data'.
+    """
+    data = np.asarray(data, dtype=float)
+    n_det = len(data)
+    n_mc  = len(init)
+
+    # Unfold once to get the central value
+    phi_final = ibu(data, r, init, det_bw, mc_bw, it)[-1]
+
+    # Poisson covariance of the measured data
+    # cov_data = np.diag(data)
+
+    # Finite-difference Jacobian: J[i_truth, j_meas]
+    J = np.zeros((n_mc, n_det))
+    eps = 1e-6
+    for j in range(n_det):
+        # Small perturbation in bin j
+        delta = np.zeros_like(data)
+        delta[j] = max(np.sqrt(data[j]), 1.0) * 1e-4  # scale step to stats
+        phi_up   = ibu(data + delta, r, init, det_bw, mc_bw, it)[-1]
+        phi_down = ibu(np.clip(data - delta, 0, None), r, init, det_bw, mc_bw, it)[-1]
+        J[:, j]  = (phi_up - phi_down) / (2 * delta[j])
+
+    # Propagate: Cov_final = J Cov_data J^T
+    cov_final = J @ cov_data @ J.T
+    return phi_final, cov_final
