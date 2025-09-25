@@ -21,6 +21,13 @@ import uproot
 # custom code
 import ibu
 
+def getThrustBins(conf):
+    if conf["obs"] == "tau":
+        return np.linspace(0, 0.42, 43) # tau bins
+    if conf["obs"] == "logtau":
+        return None # to be implemented
+    return None #
+
 def unfold(
     conf
 ):
@@ -52,7 +59,7 @@ def unfold(
     output_conf_name = os.path.abspath(os.path.join(output_directory, "conf.json"))
     with open(output_conf_name, 'w') as file:
       json.dump(conf, file, indent=4)  # indent=4 for pretty printing
-      
+    
     # load data files
     with uproot.open(os.path.join(conf["storage"], conf["data"])) as f:
       data = np.array(f["t/Thrust"]) # data
@@ -68,58 +75,75 @@ def unfold(
     # load mc gen
     with uproot.open(os.path.join(conf["storage"], conf["gen"])) as f:
       mc_gen = np.array(f["tgen/Thrust"])
-      mc_gen_mask = np.ones(f["tgen"].num_entries) # no selection on gen level
-      print(mc_gen.shape, mc_gen_mask.sum())
+      print(mc_gen.shape)
 
-    print(f"Number of data events (selected) {data.shape} ({data_mask.sum()})")
-    print(f"Number of MC reco events (selected) {mc_reco.shape} ({mc_reco_mask.sum()})")
-    print(f"Number of MC gen events {mc_gen.shape}")
-    
-    # final preparation apply selections
-    data = data[data_mask]
-    mc_reco = mc_reco[mc_reco_mask]
-    mc_gen = mc_gen[mc_reco_mask] # apply reco mask to gen also so events match
+    # load mc genBefore
+    with uproot.open(os.path.join(conf["storage"], conf["gen"].replace("tgen", "tgenBefore"))) as f:
+      mc_genBefore = np.array(f["tgenBefore/Thrust"])
+      print(mc_genBefore.shape)
+      
+    # apply observable, default loading is thrust
+    if conf["obs"] == "tau":
+        data = 1-data
+        mc_reco = 1-mc_reco
+        mc_gen = 1-mc_gen
+        mc_genBefore = 1-mc_genBefore
+    elif conf["obs"] == "logtau":
+        data = np.log(1-data)
+        mc_reco = np.log(1-mc_reco)
+        mc_gen = np.log(1-mc_gen)
+        mc_genBefore = np.log(1-mc_genBefore)
+    else:
+        print("Defaulting to Thrust observable and binning")
 
-    # # convert to log(1-tau)
-    # data = np.log(1-data)
-    # mc_reco = np.log(1-mc_reco)
-    # mc_gen = np.log(1-mc_gen)
+    # calculate bin width
+    bins = getThrustBins(conf)
+    binwidth = bins[1] - bins[0]
+    binwidth_det = binwidth
+    binwidth_mc = binwidth
 
     # run a closure test where data is replaced by reco MC
     if "run_closure_test" in conf.keys() and conf["run_closure_test"]:
        print("Running a closure test where data is replaced by reco MC")
        data = mc_reco
+       
+    print(f"Number of data events (selected) {data.shape} ({data_mask.sum()})")
+    print(f"Number of MC reco events (selected) {mc_reco.shape} ({mc_reco_mask.sum()})")
+    print(f"Number of MC gen events {mc_gen.shape}")
 
     # create the event weights
     weights_mc = np.ones(mc_gen.shape[0], dtype=np.float32)
     weights_data = np.ones(data.shape[0], dtype=np.float32)
 
+    # apply theory reweighting
     if "theory_variation_weights_path" in conf.keys():
         print("Using theory variation weights")
         theory_variation_weights = np.load(conf["theory_variation_weights_path"])
         weights_mc = theory_variation_weights
 
-    # calculate bin width
-    bins = np.linspace(0, 0.42, 43) # tau bins
-    binwidth = bins[1] - bins[0]
-    binwidth_det = binwidth
-    binwidth_mc = binwidth
+    # get the histograms for selected events
+    gen_hist = np.histogram(mc_gen[mc_reco_mask], bins=bins, density=True, weights=weights_mc[mc_reco_mask])[0]
+    data_hist = np.histogram(data[data_mask], bins=bins, density=True, weights=weights_data[data_mask])[0]
 
-    # get the histograms
-    gen_hist = np.histogram(mc_gen, bins=bins, density=True, weights=weights_mc)[0]
-    data_hist = np.histogram(data, bins=bins, density=True, weights=weights_data)[0]
-
-    # compute (and normalize) the response matrix between GEN and SIM
-    response = np.histogram2d(mc_reco, mc_gen, bins=(bins, bins), weights=weights_mc)[0]
+    # compute (and normalize) the response matrix between GEN and SIM for selected events
+    response = np.histogram2d(mc_reco[mc_reco_mask], mc_gen[mc_reco_mask], bins=(bins, bins), weights=weights_mc[mc_reco_mask])[0]
     response /= (response.sum(axis=0) + 10**-50)
 
     # perform iterative bayesian unfolding
     ibu_phis = ibu.ibu(data_hist, response, gen_hist, binwidth_det, binwidth_mc, it=conf["niter"])
-    ibu_phi_unc = ibu.ibu_unc(data_hist, response, mc_gen, binwidth_det, bins, binwidth_mc, it=5, nresamples=20) # note bins_mc = bins here
+    ibu_phi_unc = ibu.ibu_unc(data_hist, response, mc_gen[mc_reco_mask], binwidth_det, bins, binwidth_mc, it=5, nresamples=20) # note bins_mc = bins here
     # ibu_phi_unc = ibu.ibu_unc(ob, it=itnum, nrespamples=50) # udpate to take in the actual values, this is bootstrapping. This relies on reweighting. Can also use this for the theory reweighting
     
     np.save(os.path.abspath(os.path.join(output_directory, "ibu_phis.npy")), ibu_phis)
     np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_unc.npy")), ibu_phi_unc)
+
+    # compute hadronic event selection
+    if conf["job_type"] == "Nominal":
+        gen_hist = np.histogram(mc_gen, bins=bins, density=True)[0]
+        gen_bhist = np.histogram(mc_genBefore, bins=bins, density=True)[0]
+        corrs = np.ones(gen_bhist.shape)
+        corrs = gen_bhist/(gen_hist + 10**-50)
+        np.save(os.path.abspath(os.path.join(output_directory, "hadronic_event_sel_corr.npy")), corrs)
     
 if __name__ == "__main__":
 
@@ -152,6 +176,7 @@ if __name__ == "__main__":
     # update gen to be tgen rather than tgenBefore
     training_conf["gen"] = training_conf["gen"].replace("tgenBefore", "tgen") # binned unfolding and then apply the hadronic event selection correction after
     training_conf["niter"] = 5 # number of IBU iterations
+    training_conf["obs"] = "tau" # tau or log(tau)
     
     # configurations
     confs = []
