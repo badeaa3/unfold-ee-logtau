@@ -11,6 +11,7 @@ import argparse
 import random
 import submitit
 import json
+import math
 
 import omnifold
 from ReweightMCDataLoading import *
@@ -185,9 +186,13 @@ if __name__ == "__main__":
     
     # create configurations
     confs = []
-    samples = ["Pythia8", "Herwig", "Sherpa"]
-    N = 10
+    samples = ["Herwig", "Sherpa", "Pythia8"]
 
+    # ensembling
+    n_training_per_node = 3 # number of trainings per node or per job launched on nersc
+    N_ensemble = 15 # total number of training per ensemble
+    N = math.ceil(N_ensemble / n_training_per_node) if "pscratch" in args.top_dir else N_ensemble
+    
     # loop over samples and ensemble
     for i in range(N):
       for sample in samples:
