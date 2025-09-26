@@ -265,13 +265,24 @@ if __name__ == "__main__":
 
     # add configurations for theory uncertainty scan
     if args.run_theory_uncert:
-      # theory_variation_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/"
-      theory_variation_dir = "/home/badea/e+e-/aleph/UnfoldThrustResults/theory_reweighting/training-200471c7/"
+
+      # # boost 2025 results
+      # # theory_variation_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/"
+      # theory_variation_dir = "/home/badea/e+e-/aleph/UnfoldThrustResults/theory_reweighting/training-200471c7/"
+      # theory_variations = [
+      #   ["Pythia8", os.path.join(theory_variation_dir, "39912440_0/model_weights_b7634c53/Reweight_Step2.reweight.npy")],
+      #   ["Herwig", os.path.join(theory_variation_dir, "39912440_1/model_weights_cc44b19d/Reweight_Step2.reweight.npy")],
+      #   ["Sherpa", os.path.join(theory_variation_dir, "39912440_2/model_weights_afd3a072/Reweight_Step2.reweight.npy")]
+      # ]
+
+      # ensembled 15 trainings on nersc
+      theory_variation_dir = "/home/badea/e+e-/aleph/UnfoldThrustResults/theory_reweighting/training-bf3b5fc3/"
       theory_variations = [
-        ["Pythia8", os.path.join(theory_variation_dir, "39912440_0/model_weights_b7634c53/Reweight_Step2.reweight.npy")],
-        ["Herwig", os.path.join(theory_variation_dir, "39912440_1/model_weights_cc44b19d/Reweight_Step2.reweight.npy")],
-        ["Sherpa", os.path.join(theory_variation_dir, "39912440_2/model_weights_afd3a072/Reweight_Step2.reweight.npy")]
+        ["Pythia8", os.path.join(theory_variation_dir, "Reweight_Step2_Ensemble_Pythia8.npy")],
+        ["Herwig", os.path.join(theory_variation_dir, "Reweight_Step2_Ensemble_Herwig.npy")],
+        ["Sherpa", os.path.join(theory_variation_dir, "Reweight_Step2_Ensemble_Sherpa.npy")],
       ]
+
       for i in range(n_systematics):
         for name, inFileName in theory_variations:
           temp = training_conf.copy()

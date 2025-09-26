@@ -75,11 +75,13 @@ def unfold(
     # load mc gen
     with uproot.open(os.path.join(conf["storage"], conf["gen"])) as f:
       mc_gen = np.array(f["tgen/Thrust"])
+      mc_gen_uniqueID = np.array(f["tgen/uniqueID"])
       print(mc_gen.shape)
 
     # load mc genBefore
     with uproot.open(os.path.join(conf["storage"], conf["gen"].replace("tgen", "tgenBefore"))) as f:
       mc_genBefore = np.array(f["tgenBefore/Thrust"])
+      mc_genBefore_uniqueID = np.array(f["tgenBefore/uniqueID"])
       print(mc_genBefore.shape)
       
     # apply observable, default loading is thrust
@@ -119,7 +121,11 @@ def unfold(
     if "theory_variation_weights_path" in conf.keys():
         print("Using theory variation weights")
         theory_variation_weights = np.load(conf["theory_variation_weights_path"]) # need to update this since the reweighting is applied to the genBefore events so the weights_mc[mc_reco_mask] crashes
-        weights_mc = theory_variation_weights
+        # weights at tgenBefore level, need to pick up the correct ones for tgen
+        intersect, ind_mc_gen, ind_mc_genBefore = np.intersect1d(mc_gen_uniqueID, mc_genBefore_uniqueID, return_indices=True)
+        temp_w = np.zeros(len(ind_mc_gen))
+        temp_w[ind_mc_gen] = theory_variation_weights[ind_mc_genBefore]
+        weights_mc = temp_w
 
     # get the histograms for selected events
     gen_hist = np.histogram(mc_gen[mc_reco_mask], bins=bins, density=True, weights=weights_mc[mc_reco_mask])[0]
@@ -131,11 +137,11 @@ def unfold(
 
     # perform iterative bayesian unfolding
     ibu_phis = ibu.ibu(data_hist, response, gen_hist, binwidth_det, binwidth_mc, it=conf["niter"])
-    ibu_phi_unc = ibu.ibu_unc(data_hist, response, mc_gen[mc_reco_mask], binwidth_det, bins, binwidth_mc, it=5, nresamples=20) # note bins_mc = bins here
+    # ibu_phi_unc = ibu.ibu_unc(data_hist, response, mc_gen[mc_reco_mask], binwidth_det, bins, binwidth_mc, it=5, nresamples=20) # note bins_mc = bins here
     # ibu_phi_unc = ibu.ibu_unc(ob, it=itnum, nrespamples=50) # udpate to take in the actual values, this is bootstrapping. This relies on reweighting. Can also use this for the theory reweighting
     
     np.save(os.path.abspath(os.path.join(output_directory, "ibu_phis.npy")), ibu_phis)
-    np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_unc.npy")), ibu_phi_unc)
+    # np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_unc.npy")), ibu_phi_unc)
 
     # compute hadronic event selection
     if conf["job_type"] == "Nominal":
@@ -198,36 +204,47 @@ if __name__ == "__main__":
 
     # add configurations for theory uncertainty scan
     if args.run_theory_uncert:
-      # theory_variation_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/"
-      theory_variation_dir = "/home/badea/e+e-/aleph/UnfoldThrustResults/theory_reweighting/training-200471c7/"
-      theory_variations = [
-        ["Pythia8", os.path.join(theory_variation_dir, "39912440_0/model_weights_b7634c53/Reweight_Step2.reweight.npy")],
-        ["Herwig", os.path.join(theory_variation_dir, "39912440_1/model_weights_cc44b19d/Reweight_Step2.reweight.npy")],
-        ["Sherpa", os.path.join(theory_variation_dir, "39912440_2/model_weights_afd3a072/Reweight_Step2.reweight.npy")]
-      ]
-      for name, inFileName in theory_variations:
-          temp = training_conf.copy()
-          temp["job_type"] = f"TheoryUncertainty_{name}"
-          temp["theory_variation_weights_path"] = inFileName
-          confs.append(temp)
 
-    # bootstrap mc
-    n_bootstraps_mc = 1
-    if args.run_bootstrap_mc:
-      for i in range(n_bootstraps_mc):
-        temp = training_conf.copy()
-        temp["job_type"] = "BootstrapMC"
-        temp["i_ensemble_per_omnifold"] = i
-        confs.append(temp)
+        # # boost results
+        # # theory_variation_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/training-200471c7/"
+        # theory_variation_dir = "/home/badea/e+e-/aleph/UnfoldThrustResults/theory_reweighting/training-200471c7/"
+        # theory_variations = [
+        #     ["Pythia8", os.path.join(theory_variation_dir, "39912440_0/model_weights_b7634c53/Reweight_Step2.reweight.npy")],
+        #     ["Herwig", os.path.join(theory_variation_dir, "39912440_1/model_weights_cc44b19d/Reweight_Step2.reweight.npy")],
+        #     ["Sherpa", os.path.join(theory_variation_dir, "39912440_2/model_weights_afd3a072/Reweight_Step2.reweight.npy")]
+        # ]
 
-    # bootstrap data
-    n_bootstraps_data = 1
-    if args.run_bootstrap_data:
-      for i in range(n_bootstraps_data):
-        temp = training_conf.copy()
-        temp["job_type"] = "BootstrapData"
-        temp["i_ensemble_per_omnifold"] = i
-        confs.append(temp)
+        # ensembled 15 trainings on nersc
+        theory_variation_dir = "/home/badea/e+e-/aleph/UnfoldThrustResults/theory_reweighting/training-bf3b5fc3/"
+        theory_variations = [
+            ["Pythia8", os.path.join(theory_variation_dir, "Reweight_Step2_Ensemble_Pythia8.npy")],
+            ["Herwig", os.path.join(theory_variation_dir, "Reweight_Step2_Ensemble_Herwig.npy")],
+            ["Sherpa", os.path.join(theory_variation_dir, "Reweight_Step2_Ensemble_Sherpa.npy")],
+        ]
+      
+        for name, inFileName in theory_variations:
+            temp = training_conf.copy()
+            temp["job_type"] = f"TheoryUncertainty_{name}"
+            temp["theory_variation_weights_path"] = inFileName
+            confs.append(temp)
+
+    # # bootstrap mc
+    # n_bootstraps_mc = 1
+    # if args.run_bootstrap_mc:
+    #   for i in range(n_bootstraps_mc):
+    #     temp = training_conf.copy()
+    #     temp["job_type"] = "BootstrapMC"
+    #     temp["i_ensemble_per_omnifold"] = i
+    #     confs.append(temp)
+
+    # # bootstrap data
+    # n_bootstraps_data = 1
+    # if args.run_bootstrap_data:
+    #   for i in range(n_bootstraps_data):
+    #     temp = training_conf.copy()
+    #     temp["job_type"] = "BootstrapData"
+    #     temp["i_ensemble_per_omnifold"] = i
+    #     confs.append(temp)
     
     # add configuration for closure check with a single job
     if args.run_closure_test:
