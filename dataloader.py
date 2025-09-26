@@ -46,6 +46,8 @@ def DataLoader(config):
     # reco could get a nan from populating above, so we need to replace it with -999
     mc_reco[np.isnan(mc_reco)] = -999.
 
+    print(f"Number of data events (selected) {data.shape} ({data_mask.sum()})")
+    
     # final preparation
     data = np.expand_dims(data[data_mask],-1) # We only want data events passing a selection criteria
     mc_reco = np.expand_dims(mc_reco, -1) # expand dimension
