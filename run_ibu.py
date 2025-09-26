@@ -100,6 +100,7 @@ def unfold(
 
     # calculate bin width
     bins = getThrustBins(conf)
+    np.save(os.path.abspath(os.path.join(output_directory, "bins.npy")), bins) # save bins by default
     binwidth = bins[1] - bins[0]
     binwidth_det = binwidth
     binwidth_mc = binwidth
@@ -108,6 +109,7 @@ def unfold(
     if "run_closure_test" in conf.keys() and conf["run_closure_test"]:
        print("Running a closure test where data is replaced by reco MC")
        data = mc_reco
+       data_mask = mc_reco_mask
        
     print(f"Number of data events (selected) {data.shape} ({data_mask.sum()})")
     print(f"Number of MC reco events (selected) {mc_reco.shape} ({mc_reco_mask.sum()})")
@@ -137,11 +139,12 @@ def unfold(
 
     # perform iterative bayesian unfolding
     ibu_phis = ibu.ibu(data_hist, response, gen_hist, binwidth_det, binwidth_mc, it=conf["niter"])
-    # ibu_phi_unc = ibu.ibu_unc(data_hist, response, mc_gen[mc_reco_mask], binwidth_det, bins, binwidth_mc, it=5, nresamples=20) # note bins_mc = bins here
-    # ibu_phi_unc = ibu.ibu_unc(ob, it=itnum, nrespamples=50) # udpate to take in the actual values, this is bootstrapping. This relies on reweighting. Can also use this for the theory reweighting
-    
     np.save(os.path.abspath(os.path.join(output_directory, "ibu_phis.npy")), ibu_phis)
-    # np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_unc.npy")), ibu_phi_unc)
+
+    # perform bootstrapping
+    if conf["job_type"] == "Nominal":
+        ibu_phi_unc = ibu.ibu_unc(data_hist, response, mc_gen[mc_reco_mask], binwidth_det, bins, binwidth_mc, it=conf["niter"], nresamples=100) # note bins_mc = bins here
+        np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_unc.npy")), ibu_phi_unc)
 
     # compute hadronic event selection
     if conf["job_type"] == "Nominal":
@@ -158,9 +161,10 @@ if __name__ == "__main__":
     parser.add_argument("--slurm", help="path to json file containing slurm configuration", default=None)
     parser.add_argument("--njobs", help="number of jobs to actually launch. default is all", default=-1, type=int)
     parser.add_argument('--verbose', action='store_true', default=False, help='Run the scripts with more verbose output')
+    parser.add_argument('--run_nominal', action='store_true', default=False, help='Run the nominal unfolding')
     parser.add_argument('--run_systematics', action='store_true', default=False, help='Run the track and event selection systematic variations')
-    parser.add_argument('--run_bootstrap_mc', action='store_true', default=False, help='Run the bootstrapping for MC')
-    parser.add_argument('--run_bootstrap_data', action='store_true', default=False, help='Run the bootstrapping for data')
+    # parser.add_argument('--run_bootstrap_mc', action='store_true', default=False, help='Run the bootstrapping for MC')
+    # parser.add_argument('--run_bootstrap_data', action='store_true', default=False, help='Run the bootstrapping for data')
     # parser.add_argument('--run_ensembling', action='store_true', default=False, help='Run the ensembling by retraining without changing the inputs')
     parser.add_argument('--run_closure_test', action='store_true', default=False, help="Run a closure test where data is replaced by reco MC.")
     # parser.add_argument('--run_hyperparameter_scan', action='store_true', default=False, help='Run the hyperparameter scan')
@@ -188,9 +192,10 @@ if __name__ == "__main__":
     confs = []
 
     # nominal
-    temp = training_conf.copy()
-    temp["job_type"] = "Nominal"
-    confs.append(temp)
+    if args.run_nominal:
+        temp = training_conf.copy()
+        temp["job_type"] = "Nominal"
+        confs.append(temp)
     
     # sysematic variations
     if args.run_systematics:
