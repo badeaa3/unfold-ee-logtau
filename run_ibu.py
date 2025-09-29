@@ -130,16 +130,26 @@ def unfold(
         weights_mc = temp_w
 
     # get the histograms for selected events
-    gen_hist = np.histogram(mc_gen[mc_reco_mask], bins=bins, density=True, weights=weights_mc[mc_reco_mask])[0]
+    gen_hist = np.histogram(mc_gen[mc_reco_mask], bins=bins, density=True, weights=weights_mc[mc_reco_mask])[0] # gen level histogram
+    # gen_hist = np.histogram(mc_gen, bins=bins, density=True, weights=weights_mc)[0] # gen level histogram
     data_hist = np.histogram(data[data_mask], bins=bins, density=True, weights=weights_data[data_mask])[0]
 
+    # save plots to check the closure
+    np.save(os.path.abspath(os.path.join(output_directory, "gen_hist.npy")), gen_hist)
+    np.save(os.path.abspath(os.path.join(output_directory, "data_hist.npy")), data_hist)
+       
     # compute (and normalize) the response matrix between GEN and SIM for selected events
     response = np.histogram2d(mc_reco[mc_reco_mask], mc_gen[mc_reco_mask], bins=(bins, bins), weights=weights_mc[mc_reco_mask])[0]
     response /= (response.sum(axis=0) + 10**-50)
 
+    print("Data hist:", data_hist)
+    print("Response:", response)
+    print("Gen hist", gen_hist)
+    
     # perform iterative bayesian unfolding
     ibu_phis = ibu.ibu(data_hist, response, gen_hist, binwidth_det, binwidth_mc, it=conf["niter"])
     np.save(os.path.abspath(os.path.join(output_directory, "ibu_phis.npy")), ibu_phis)
+    print(ibu_phis[-1])
 
     # perform bootstrapping
     if conf["job_type"] == "Nominal":
@@ -147,12 +157,12 @@ def unfold(
         np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_unc.npy")), ibu_phi_unc)
 
     # compute hadronic event selection
-    if conf["job_type"] == "Nominal":
-        gen_hist = np.histogram(mc_gen, bins=bins, density=True)[0]
-        gen_bhist = np.histogram(mc_genBefore, bins=bins, density=True)[0]
-        corrs = np.ones(gen_bhist.shape)
-        corrs = gen_bhist/(gen_hist + 10**-50)
-        np.save(os.path.abspath(os.path.join(output_directory, "hadronic_event_sel_corr.npy")), corrs)
+    # if conf["job_type"] == "Nominal":
+    gen_hist = np.histogram(mc_gen[mc_reco_mask], bins=bins, density=True)[0]
+    gen_bhist = np.histogram(mc_genBefore, bins=bins, density=True)[0]
+    corrs = np.ones(gen_bhist.shape)
+    corrs = gen_bhist/(gen_hist + 10**-50)
+    np.save(os.path.abspath(os.path.join(output_directory, "hadronic_event_sel_corr.npy")), corrs)
     
 if __name__ == "__main__":
 
@@ -185,7 +195,7 @@ if __name__ == "__main__":
     print(training_conf)
     # update gen to be tgen rather than tgenBefore
     training_conf["gen"] = training_conf["gen"].replace("tgenBefore", "tgen") # binned unfolding and then apply the hadronic event selection correction after
-    training_conf["niter"] = 5 # number of IBU iterations
+    training_conf["niter"] = 4 # number of IBU iterations
     training_conf["obs"] = "tau" # tau or log(tau)
     
     # configurations
@@ -200,6 +210,7 @@ if __name__ == "__main__":
     # sysematic variations
     if args.run_systematics:
         SystematicVariationList = ["ntpc7", "pt04", "ech10", "no_neutrals", "with_met"]
+        # SystematicVariationList = ["no_neutrals"]
         for SystematicVariation in SystematicVariationList:
             temp = training_conf.copy()
             temp["data"] = temp["data"].replace("nominal", SystematicVariation)
@@ -260,12 +271,12 @@ if __name__ == "__main__":
 
     # add configurations for niter scan
     if args.run_niter_scan:
-      niter = list(range(1,7))
-      for niter in niter:
-        temp = training_conf.copy()
-        temp["job_type"] = "NiterScan"
-        temp["niter"] = niter
-        confs.append(temp)
+        niter = list(range(1,5))
+        for niter in niter:
+            temp = training_conf.copy()
+            temp["job_type"] = "NiterScan"
+            temp["niter"] = niter
+            confs.append(temp)
 
     # if no slurm config file provided then just launch job
     if args.slurm == None:
