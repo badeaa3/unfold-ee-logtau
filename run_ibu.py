@@ -129,33 +129,19 @@ def unfold(
         temp_w[ind_mc_gen] = theory_variation_weights[ind_mc_genBefore]
         weights_mc = temp_w
 
-    # get the histograms for selected events
-    gen_hist = np.histogram(mc_gen[mc_reco_mask], bins=bins, density=True, weights=weights_mc[mc_reco_mask])[0] # gen level histogram
-    # gen_hist = np.histogram(mc_gen, bins=bins, density=True, weights=weights_mc)[0] # gen level histogram
-    data_hist = np.histogram(data[data_mask], bins=bins, density=True, weights=weights_data[data_mask])[0]
-
-    # save plots to check the closure
-    np.save(os.path.abspath(os.path.join(output_directory, "gen_hist.npy")), gen_hist)
-    np.save(os.path.abspath(os.path.join(output_directory, "data_hist.npy")), data_hist)
-       
-    # compute (and normalize) the response matrix between GEN and SIM for selected events
-    response = np.histogram2d(mc_reco[mc_reco_mask], mc_gen[mc_reco_mask], bins=(bins, bins), weights=weights_mc[mc_reco_mask])[0]
-    response /= (response.sum(axis=0) + 10**-50)
-
-    print("Data hist:", data_hist)
-    print("Response:", response)
-    print("Gen hist", gen_hist)
-    
-    # perform iterative bayesian unfolding
-    ibu_phis = ibu.ibu(data_hist, response, gen_hist, binwidth_det, binwidth_mc, it=conf["niter"])
+    ibu_phis = ibu.ibu_wrapper(data[data_mask], weights_data[data_mask], mc_reco[mc_reco_mask], mc_gen[mc_reco_mask], weights_mc[mc_reco_mask], binwidth, bins, it=conf["niter"], output_directory=output_directory)
     np.save(os.path.abspath(os.path.join(output_directory, "ibu_phis.npy")), ibu_phis)
     print(ibu_phis[-1])
 
     # perform bootstrapping
     if conf["job_type"] == "Nominal":
-        ibu_phi_unc = ibu.ibu_unc(data_hist, response, mc_gen[mc_reco_mask], binwidth_det, bins, binwidth_mc, it=conf["niter"], nresamples=100) # note bins_mc = bins here
-        np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_unc.npy")), ibu_phi_unc)
-
+        
+        ibu_boostrap_data = ibu.ibu_bootstrap(data[data_mask], weights_data[data_mask], mc_reco[mc_reco_mask], mc_gen[mc_reco_mask], weights_mc[mc_reco_mask], binwidth, bins, boot="data", it=conf["niter"], nresamples=conf["nresamples"])
+        np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_bootstrap_data.npy")), ibu_boostrap_data)
+        
+        ibu_boostrap_mc = ibu.ibu_bootstrap(data[data_mask], weights_data[data_mask], mc_reco[mc_reco_mask], mc_gen[mc_reco_mask], weights_mc[mc_reco_mask], binwidth, bins, boot="mc", it=conf["niter"], nresamples=conf["nresamples"])
+        np.save(os.path.abspath(os.path.join(output_directory, "ibu_phi_bootstrap_mc.npy")), ibu_boostrap_mc)
+        
     # compute hadronic event selection
     # if conf["job_type"] == "Nominal":
     gen_hist = np.histogram(mc_gen[mc_reco_mask], bins=bins, density=True)[0]
@@ -205,6 +191,7 @@ if __name__ == "__main__":
     if args.run_nominal:
         temp = training_conf.copy()
         temp["job_type"] = "Nominal"
+        temp["nresamples"] = 100
         confs.append(temp)
     
     # sysematic variations

@@ -2,6 +2,7 @@
 # Edited by: Anthony Badea, 2025
 
 import numpy as np
+import os
 
 # Iterative Bayesian Unfolding, requires uniform binning (but det and mc can be different)
 # data: measured histogram
@@ -47,6 +48,67 @@ def ibu_unc(data_hist, response, mc_gen, binwidth_det, bins_mc, binwidth_mc, it=
     # return the standard deviation, bin-by-bin, as the uncertainty
     return np.std(np.asarray(rephis), axis=0)
 
+def ibu_wrapper(data, weights_data, mc_reco, mc_gen, weights_mc, binwidth, bins, it=5, output_directory=None):
+
+    # data histogram
+    data_hist = np.histogram(data, bins=bins, density=True)[0]
+    
+    # get the new generator-level histogram
+    gen_hist = np.histogram(mc_gen, weights=weights_mc, bins=bins, density=True)[0]
+
+    # make response
+    response = np.histogram2d(mc_reco, mc_gen, bins=(bins, bins), weights=weights_mc)[0]
+    response /= (response.sum(axis=0) + 10**-50)
+
+    # redo the IBU unfolding with this new prior (genobs_hist_rw)
+    phis = ibu(data_hist, response, gen_hist, binwidth, binwidth, it=it)
+
+    # save histograms if outDir
+    if output_directory != None:
+        np.save(os.path.abspath(os.path.join(output_directory, "data_hist.npy")), data_hist)
+        np.save(os.path.abspath(os.path.join(output_directory, "gen_hist.npy")), gen_hist)
+        np.save(os.path.abspath(os.path.join(output_directory, "response.npy")), response)
+
+    return phis
+    
+# statistical uncertainty on the IBU distribution only from uncertainty on the prior
+def ibu_bootstrap(data, weights_data, mc_reco, mc_gen, weights_mc, binwidth, bins, it=5, boot="data", nresamples=20):
+    
+    rephis = []
+    for resample in range(nresamples):
+
+        if boot == "data":
+            
+            # resample the weights
+            reweights = np.random.poisson(1, size=len(data)) * weights_data
+            # print(weights_data)
+            # print(reweights)
+            # reweights *= weights_data
+        
+            # run ibu
+            phi = ibu_wrapper(data, reweights, mc_reco, mc_gen, weights_mc, binwidth, bins, it=it)[-1]
+    
+            # write down the phis
+            rephis.append(phi)
+            
+        elif boot == "mc":
+            
+            # resample the weights
+            reweights = np.random.poisson(1, size=len(mc_gen)) * weights_mc
+            # reweights *= weights_mc
+        
+            # run ibu
+            phi = ibu_wrapper(data, weights_data, mc_reco, mc_gen, reweights, binwidth, bins, it=it)[-1]
+    
+            # write down the phis
+            rephis.append(phi)
+        
+        else:
+            print("Not a valid bootstrap.")
+            return
+
+    # return the standard deviation, bin-by-bin, as the uncertainty
+    return np.std(np.asarray(rephis), axis=0)
 
 def ibu_covariance(data, r, init, det_bw, mc_bw, cov_data, it=10):
     """
