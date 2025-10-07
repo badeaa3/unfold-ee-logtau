@@ -3,7 +3,43 @@ import os
 import numpy as np
 import json
 import matplotlib.pyplot as plt
+import os
+import PyPDF2
+from PyPDF2 import PdfReader, PdfWriter, Transformation
 
+def watermark(
+    in_file, # input file name
+    out_file, # output file name
+    scale=0.12, tx=44, ty=251,
+    logo_fpath='./ee-logo.pdf',
+    **kwargs
+):
+
+    # ensure out_plots_dir exists
+    # os.makedirs(out_plots_dir, exist_ok=True)
+    
+    # open files for bare plot and the logo
+    bare_plot = open(in_file, 'rb')
+    logo = open(logo_fpath, 'rb')
+    
+    # extract pdf pages for bare plot and the logo
+    plot_page = PyPDF2.PdfFileReader(bare_plot).getPage(0)
+    logo_page = PyPDF2.PdfFileReader(logo).getPage(0)
+    
+    # add the watermark
+    plot_page.mergeScaledTranslatedPage(logo_page, scale, tx, ty, expand=True)
+    
+    # create a pdf writer for the new plot
+    out_plot_pdf = PyPDF2.PdfFileWriter()
+    out_plot_pdf.addPage(plot_page)
+    
+    # write new plot to PDF
+    out_plot = open(out_file, 'wb')
+    out_plot_pdf.write(out_plot)
+    
+    # close all files
+    bare_plot.close(); logo.close(); out_plot.close()
+    
 def loadWeightPaths(fileList): #file_pattern):
     # fileList = sorted(glob.glob(file_pattern))
     d = {}
