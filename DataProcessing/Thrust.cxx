@@ -415,6 +415,14 @@ int main(int argc, char* argv[]) {
 	  NTrk += 1;
 	}
 
+	// perform neutral particle energy scaling
+	if(selMap["NES"] != -1 && (pwflag[iP] >= 3 && pwflag[iP] <= 5)){
+	  energy *= selMap["NES"];
+	  px[iP] *= selMap["NES"];
+	  py[iP] *= selMap["NES"];
+	  pz[iP] *= selMap["NES"];
+	}
+	
         // neutral particle selections
         bool passNeuPartSel =
           (pwflag[iP] >= 3 && pwflag[iP] <= 5)
