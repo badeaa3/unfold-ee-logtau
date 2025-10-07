@@ -15,6 +15,8 @@ Analysis: MITHIG-MOD-20-001 Omnifold applied to ALEPH data
 
 #include "TError.h"  // Required for gErrorIgnoreLevel and kError
 
+#include "TRandom.h"
+
 // thrust code
 #include "thrustTools.h"
 #include "sphericityTools.h"
@@ -432,6 +434,17 @@ int main(int argc, char* argv[]) {
 	// add cleaning for data neutral hadrons (pwflag 5) -0.19 <= cos(theta) < -0.18
 	bool cleanDataNeutralHadron = (pwflag[iP] == 5) && (-0.19 <= cos(theta[iP]) && cos(theta[iP]) < -0.18);
 	passNeuPartSel = passNeuPartSel && !cleanDataNeutralHadron;
+
+	// neutral particle efficiency variation
+	if(selMap["NER"] != -1){
+	  if(passNeuPartSel){
+	    double r = gRandom->Uniform(); // uniform random number between 0 and 1
+	    if (r <= selMap["NER"]) {
+	      passNeuPartSel = false;
+	    }
+	  }
+          // otherwise leave passNeuPartSel as it is
+        }
 	
 	if(passNeuPartSel && selMap["keepNeutralTracks"]){
 	  if (debug) std::cout << "Passed neutral track selection" << std::endl;

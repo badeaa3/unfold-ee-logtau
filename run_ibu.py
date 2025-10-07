@@ -183,6 +183,7 @@ if __name__ == "__main__":
     training_conf["gen"] = training_conf["gen"].replace("tgenBefore", "tgen") # binned unfolding and then apply the hadronic event selection correction after
     training_conf["niter"] = 4 # number of IBU iterations
     training_conf["obs"] = "tau" # tau or log(tau)
+    training_conf["storage"] = "/home/badea/e+e-/aleph/unfold-ee-logtau/DataProcessing/100725/7" # update the storage directory
     
     # configurations
     confs = []
@@ -196,11 +197,17 @@ if __name__ == "__main__":
     
     # sysematic variations
     if args.run_systematics:
-        SystematicVariationList = ["ntpc7", "pt04", "ech10", "no_neutrals", "with_met"]
-        # SystematicVariationList = ["no_neutrals"]
+
+        SystematicVariationList = ["ntpc7", "pt04", "ech10", "no_neutrals", "with_met"] # all cut based systematics
+        NeutralParticleMCVariations = ["nes_up", "nes_down", "ner"] # reco MC variations to account for mis-modeling of detector response/efficiency for neutral particles
+        SystematicVariationList += NeutralParticleMCVariations
+        
         for SystematicVariation in SystematicVariationList:
             temp = training_conf.copy()
-            temp["data"] = temp["data"].replace("nominal", SystematicVariation)
+            # only apply cut based variations to data
+            if SystematicVariation not in NeutralParticleMCVariations:
+                temp["data"] = temp["data"].replace("nominal", SystematicVariation)
+            # apply all variations to reco mc
             temp["reco"] = temp["reco"].replace("nominal", SystematicVariation)
             temp["job_type"] = "Systematics"
             confs.append(temp)
