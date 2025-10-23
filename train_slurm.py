@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
     # trainings per ensemble
     N_trainings_per_ensemble = 100
-
+    
     # add configurations for track and event selection systematic variations
     # total_n_systematics = 10 # closest to 10 which divides by 4
     # n_systematics = math.ceil(total_n_systematics / n_training_per_node)
@@ -255,9 +255,14 @@ if __name__ == "__main__":
 
         # sysematic variations
         SystematicVariationList = ["ntpc7", "pt04", "ech10", "no_neutrals", "with_met"]
+        NeutralParticleMCVariations = ["nes_up", "nes_down", "ner"] # reco MC variations to account for mis-modeling of detector response/efficiency for neutral particles
+        SystematicVariationList += NeutralParticleMCVariations
+                
         for SystematicVariation in SystematicVariationList:
-          temp = training_conf.copy()
-          temp["data"] = temp["data"].replace("nominal", SystematicVariation)
+          temp = training_conf.copy()            
+          # only apply cut based variations to data
+          if SystematicVariation not in NeutralParticleMCVariations:
+            temp["data"] = temp["data"].replace("nominal", SystematicVariation)
           temp["reco"] = temp["reco"].replace("nominal", SystematicVariation)
           temp["job_type"] = "Systematics"
           temp["i_ensemble_per_omnifold"] = i
