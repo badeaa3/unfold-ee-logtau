@@ -49,7 +49,8 @@ def loadWeightPaths(fileList): #file_pattern):
             conf = json.load(f)
 
         job_type = conf["job_type"]
-        data_key = conf["data"].split("_thrust_")[-1].split("_t.root")[0]
+        # data_key = conf["data"].split("_thrust_")[-1].split("_t.root")[0]
+        data_key = conf["reco"].split("_thrust_")[-1].split("_t.root")[0]
         weight_path = os.path.dirname(file_path)
 
         if job_type not in d:
