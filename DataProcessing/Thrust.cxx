@@ -20,6 +20,7 @@ Analysis: MITHIG-MOD-20-001 Omnifold applied to ALEPH data
 // thrust code
 #include "thrustTools.h"
 #include "sphericityTools.h"
+#include "rivetThrust.h"
 
 // c++ code
 #include <vector>
@@ -240,11 +241,12 @@ int main(int argc, char* argv[]) {
   // create output tree
   std::unique_ptr<TTree> tout (new TTree(tree.c_str(), ""));
   unsigned long long uniqueIDCopy; 
-  float Thrust, TotalTrkEnergy, STheta, Sph, MissP, EVis, TTheta;
+  float Thrust, TotalTrkEnergy, STheta, Sph, MissP, EVis, TTheta, RivetThrust;
   int NTrk, Neu;
   bool passEventSelection;
   tout->Branch("uniqueID", &uniqueIDCopy);
   tout->Branch("Thrust", &Thrust);
+  tout->Branch("RivetThrust", &RivetThrust);
   tout->Branch("TotalTrkEnergy", &TotalTrkEnergy);
   tout->Branch("NTrk", &NTrk);
   tout->Branch("Neu", &Neu);
@@ -505,6 +507,18 @@ int main(int argc, char* argv[]) {
     thrust = getThrust(selectedParts, selectedPx.data(), selectedPy.data(), selectedPz.data(), THRUST::OPTIMAL);
     Thrust = thrust.Mag();
     TTheta = thrust.Theta();
+
+    // rivet thrust
+    std::vector<TVector3> fsmomenta;
+    double momentumSum = 0;
+    for (int t = 0; t < selectedParts; t++) {
+      fsmomenta.push_back(TVector3(selectedPx.at(t), selectedPy.at(t), selectedPz.at(t)));
+      momentumSum += fsmomenta.at(t).Mag();
+    }
+    TVector3 axis(0,0,0);
+    double val = 0;
+    _calcT(fsmomenta, val, axis);
+    RivetThrust = val / momentumSum;
 
     // compute event selection passes
     bool eventSelection =
