@@ -7,6 +7,57 @@ import os
 import PyPDF2
 from PyPDF2 import PdfReader, PdfWriter, Transformation
 
+def mc_bin_quality(
+    data_counts: np.ndarray,
+    data_err: np.ndarray,
+    mc_counts: np.ndarray,
+    mc_err: np.ndarray,
+    rel_mc_unc_max: float = 0.20,
+    pull_abs_max: float = 3.0
+) -> np.ndarray:
+    """
+    Return a boolean mask (same shape as input arrays) where each bin is True
+    if the MC is statistically reliable AND compatible with data.
+
+    Parameters
+    ----------
+    data_counts : array
+        Data histogram bin contents. 
+    data_err : array
+        1σ statistical errors on the data bins.
+    mc_counts : array
+        MC histogram bin contents.
+    mc_err : array
+        1σ statistical errors on the MC bins (e.g. sqrt(sum w^2)).
+    rel_mc_unc_max : float
+        Maximum allowed relative MC uncertainty (default 0.20 = 20%).
+    pull_abs_max : float
+        Maximum allowed absolute pull (default 3σ).
+    """
+    data_counts = np.asarray(data_counts, dtype=float)
+    data_err    = np.asarray(data_err, dtype=float)
+    mc_counts   = np.asarray(mc_counts, dtype=float)
+    mc_err      = np.asarray(mc_err, dtype=float)
+
+    # Combined statistical uncertainty per bin
+    sigma = np.sqrt(data_err**2 + mc_err**2)
+
+    # Relative MC uncertainty
+    rel_mc_unc = np.divide(mc_err, mc_counts,
+                           out=np.zeros_like(mc_err),
+                           where=mc_counts > 0)
+
+    # Pull (z-score) for each bin
+    pull = np.divide(mc_counts - data_counts, sigma,
+                     out=np.zeros_like(mc_err),
+                     where=sigma > 0)
+
+    # Criteria
+    good_rel_unc = rel_mc_unc <= rel_mc_unc_max
+    good_pull    = np.abs(pull) <= pull_abs_max
+
+    return good_rel_unc & good_pull
+    
 def watermark(
     in_file, # input file name
     out_file, # output file name
