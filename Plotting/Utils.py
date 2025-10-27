@@ -3,9 +3,45 @@ import os
 import numpy as np
 import json
 import matplotlib.pyplot as plt
+import os
+import PyPDF2
+from PyPDF2 import PdfReader, PdfWriter, Transformation
 
-def loadWeightPaths(file_pattern):
-    fileList = sorted(glob.glob(file_pattern))
+def watermark(
+    in_file, # input file name
+    out_file, # output file name
+    scale=0.12, tx=44, ty=251,
+    logo_fpath='./ee-logo.pdf',
+    **kwargs
+):
+
+    # ensure out_plots_dir exists
+    # os.makedirs(out_plots_dir, exist_ok=True)
+    
+    # open files for bare plot and the logo
+    bare_plot = open(in_file, 'rb')
+    logo = open(logo_fpath, 'rb')
+    
+    # extract pdf pages for bare plot and the logo
+    plot_page = PyPDF2.PdfFileReader(bare_plot).getPage(0)
+    logo_page = PyPDF2.PdfFileReader(logo).getPage(0)
+    
+    # add the watermark
+    plot_page.mergeScaledTranslatedPage(logo_page, scale, tx, ty, expand=True)
+    
+    # create a pdf writer for the new plot
+    out_plot_pdf = PyPDF2.PdfFileWriter()
+    out_plot_pdf.addPage(plot_page)
+    
+    # write new plot to PDF
+    out_plot = open(out_file, 'wb')
+    out_plot_pdf.write(out_plot)
+    
+    # close all files
+    bare_plot.close(); logo.close(); out_plot.close()
+    
+def loadWeightPaths(fileList): #file_pattern):
+    # fileList = sorted(glob.glob(file_pattern))
     d = {}
 
     for file_path in fileList:
@@ -13,7 +49,8 @@ def loadWeightPaths(file_pattern):
             conf = json.load(f)
 
         job_type = conf["job_type"]
-        data_key = conf["data"].split("_thrust_")[-1].split("_t.root")[0]
+        # data_key = conf["data"].split("_thrust_")[-1].split("_t.root")[0]
+        data_key = conf["reco"].split("_thrust_")[-1].split("_t.root")[0]
         weight_path = os.path.dirname(file_path)
 
         if job_type not in d:
@@ -72,6 +109,16 @@ def loadWeights(inPath):
     weights = np.stack(temp, 0)
 
     return weights
+
+
+def ensemblePredsThenGetWeight(w, N):
+    f = w/(1+w) # go back to raw NN predictions from w = f(x)/(1-x) -> f(x) = w/(1+w)
+    f = f[:,:N*int(f.shape[1]/N)] # extact enough to have full ensembles of N
+    f = f.reshape(f.shape[0], -1, N, f.shape[-1]) # reshape to (nVariation, nEnsemble, nTrainingPerGroup, nEvents)
+    # get number of groups and take median
+    f = np.mean(f, axis=2)
+    w = f/(1-f) # go back to weights
+    return w
 
 def ensembleWeights(weights, N):
     temp = weights[:,:N*int(weights.shape[1]/N)] # extact enough to have full ensembles of N
@@ -201,12 +248,13 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 label = plot["label"], 
                 xerr = plot["xerr"], 
                 yerr = plot["yerr"], 
-                fmt='o', 
+                fmt=plot.get("fmt", 'o'), 
                 lw=plot.get("lw", 2), 
                 capsize=plot.get("capsize", 3), 
                 capthick=1, 
                 markersize=plot.get("markersize", 1.5),
-                alpha=plot.get("alpha", 1)
+                alpha=plot.get("alpha", 1),
+                markerfacecolor=plot.get("markerfacecolor", "auto")
             )
         elif plot["plotType"] == "stairs":
             ax1.stairs(
@@ -215,7 +263,8 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 label=plot["label"], 
                 color=plot["color"],
                 ls=plot["ls"],
-                lw=2
+                lw=plot.get("lw", 2),
+                alpha=plot.get("alpha",1)
             )
 
     # plot ratios
@@ -254,39 +303,46 @@ def plotThrust(style, inPlots, ratio_denom, epsilon = 1e-10, header = r"ALEPH e$
                 plot["ratio_y"], 
                 color = plot["color"],
                 ls = plot["ls"],
-                lw=2
+                lw = plot.get("lw", 2)
             )
 
     # ratio horizontal line
-    ax2.axhline(y=1, color='gray', linestyle='--', alpha=0.5)  # Adding a horizontal line at y=1 for reference
+    ax2.axhline(y=1, color='black', linestyle='--', alpha=1, lw=1)  # Adding a horizontal line at y=1 for reference
 
     # legend
     ax1.legend(loc = style["legend_loc"], 
                bbox_to_anchor = style["legend_bbox"], 
                ncol = style["legend_ncol"],
-               fontsize = style["legend_fontsize"])
-    
+               fontsize = style["legend_fontsize"],
+               handletextpad=0.7,
+               handlelength=0.8, 
+               # handleheight=0.5, 
+               # labelspacing=0.5, 
+               # columnspacing=1.0
+              )
+       
     # axis settings
-    ax1.set_ylabel(style["ax1_ylabel"], fontsize=18)
+    ax1.set_ylabel(style["ax1_ylabel"], fontsize=style.get("ax1_ylabel_fs", 18), labelpad=8)
     ax1.set_yscale(style["ax1_yscale"])
-    ax2.set_xlabel(style["ax2_xlabel"], fontsize=18, labelpad=8)
+    ax2.set_xlabel(style["ax2_xlabel"], fontsize=style.get("ax2_xlabel_fs", 18), labelpad=8)
     ax2.set_xscale(style["ax2_xscale"])
-    ax2.set_ylabel(style["ax2_ylabel"], fontsize=14)
+    ax2.set_ylabel(style["ax2_ylabel"], fontsize=style.get("ax2_ylabel_fs", 18))
 
     # set limits
     # ax1.set_ylim(0.2*10**-5, 10**0)
-    ax1.set_ylim(style["ax1_ylim"][0], style["ax1_ylim"][1])
+    if "ax1_ylim" in style.keys() and style["ax1_ylim"] is not None:
+        ax1.set_ylim(style["ax1_ylim"][0], style["ax1_ylim"][1])
     if "ax2_xlim" in style.keys() and style["ax2_xlim"] is not None:
         ax2.set_xlim(style["ax2_xlim"][0], style["ax2_xlim"][1])
     else:
         ax2.set_xlim(style["bins"][0], style["bins"][-1])
     ax2.set_ylim(style["ax2_ylim"][0], style["ax2_ylim"][1])
 
-    ax1.tick_params(axis='both', which='major', labelsize=15)
-    ax2.tick_params(axis='both', which='major', labelsize=15)
+    ax1.tick_params(axis='both', which='major', labelsize=style.get("ax1_tick_ls", 15))
+    ax2.tick_params(axis='both', which='major', labelsize=style.get("ax2_tick_ls", 15))
 
     # top text
-    ax1.text(0, 1, header, transform=ax1.transAxes, ha='left', va='bottom', fontsize=style["header_fontsize"])
+    ax1.text(0, 1.01, header, transform=ax1.transAxes, ha='left', va='bottom', fontsize=style["header_fontsize"])
 
     return fig, (ax1, ax2)
 

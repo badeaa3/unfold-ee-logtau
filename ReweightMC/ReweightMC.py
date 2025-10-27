@@ -11,6 +11,7 @@ import argparse
 import random
 import submitit
 import json
+import math
 
 import omnifold
 from ReweightMCDataLoading import *
@@ -176,29 +177,41 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--slurm", help="path to json file containing slurm configuration", default=None)
     parser.add_argument("--njobs", help="number of jobs to actually launch. default is all", default=-1, type=int)
+    parser.add_argument('--top_dir', help="Top level directory for storing data. Default to nersc directory", default="/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/")
     args = parser.parse_args()
 
     # settings
-    top_dir = "/pscratch/sd/b/badea/aleph/unfold-ee-logtau/ReweightMC/results/"
+    top_dir = args.top_dir
     top_dir = os.path.abspath(os.path.join(top_dir, f'training-{"%08x" % random.randrange(16**8)}', "%j"))
     
     # create configurations
     confs = []
-    samples = ["Pythia8", "Herwig", "Sherpa"]
-    for sample in samples:
+    samples = ["Herwig", "Sherpa", "Pythia8"]
+
+    # ensembling
+    n_training_per_node = 3 # number of trainings per node or per job launched on nersc
+    N_ensemble = 15 # total number of training per ensemble
+    N = math.ceil(N_ensemble / n_training_per_node) if "pscratch" in args.top_dir else N_ensemble
+    
+    # loop over samples and ensemble
+    for i in range(N):
+      for sample in samples:
         confs.append({
-            "output_directory": top_dir,
-            "test_size": 0.2,
-            "lr": 5e-4,
-            "batch_size": 2048,
-            "verbose": True,
-            "maxNPart": 80,
-            "new_mc_name": sample,
-            "step1_epochs" : 2,
-            "step2_epochs" : 200,
-            "early_stopping_patience" : 20,
+          "output_directory": top_dir,
+          "test_size": 0.2,
+          "lr": 5e-4,
+          "batch_size": 2048,
+          "verbose": True,
+          "maxNPart": 80,
+          "new_mc_name": sample,
+          "step1_epochs" : 2,
+          "step2_epochs" : 200,
+          "early_stopping_patience" : 20,
         })
 
+    # print out job order
+    print([conf["new_mc_name"] for conf in confs])
+    
     # if no slurm config file provided then just launch job
     if args.slurm == None:
         print("No slurm config file provided. Running jobs locally.")

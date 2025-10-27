@@ -49,7 +49,9 @@ DEFAULT_SELECTION = {
     'MissPCut': 9999, # GeV
     'keepChargedTracks': True,
     'keepNeutralTracks': True,
-    'doMET': False
+    'doMET': False,
+    'NES' : -1, # neutral particle energy scale (NES) variation
+    'NER' : -1, # neutral particle efficiency variation via random throwing (NER)
 }
 
 def config_to_string(config):
@@ -117,7 +119,22 @@ def create_selection_variations():
     with_met = DEFAULT_SELECTION.copy()
     with_met['doMET'] = True
     variations.append(('with_met', with_met))
-    
+
+    # vary neutral particle energy scale up
+    nes_up = DEFAULT_SELECTION.copy()
+    nes_up["NES"] = 1.05
+    variations.append(('nes_up', nes_up))
+
+    # vary neutral particle energy scale down
+    nes_down = DEFAULT_SELECTION.copy()
+    nes_down["NES"] = 0.95
+    variations.append(('nes_down', nes_down))
+
+    # vary neutral particle efficiency by randomly throwing away with probability x%
+    ner = DEFAULT_SELECTION.copy()
+    ner["NER"] = 0.025
+    variations.append(('ner', ner))
+        
     return variations
 
 
@@ -226,10 +243,19 @@ def main():
     # Get file configuration and create variations
     file_config = get_file_config(ops.inFile)
     variations = create_selection_variations()
-
+    
     # only run nominal
     if ops.nominalOnly:
-        variations = [variations[1]]
+        # variations = [variations[1]]
+        variations = variations[:2]
+
+    # only nominal and neutral particle energy scale variation
+    if ops.nesOnly:
+        variations = [i for i in variations if i[0] in ["nominal", "nes_up", "nes_down", "no_neutrals"]]
+
+    # only run variations in input list
+    if ops.onlyThese:
+        variations = [i for i in variations if i[0] in ops.onlyThese]
         
     total_trees = len(file_config['treeNames'])
     print(f"Running {len(variations)} selection variations with {total_trees} trees each, {ops.ndivs} divisions per tree")
@@ -248,6 +274,8 @@ def parse_arguments():
     parser.add_argument("--dryrun", action="store_true", help="Print commands without executing them")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode in Thrust.exe")
     parser.add_argument("--nominalOnly", action="store_true", help="Only run the nominal selection variation")
+    parser.add_argument("--nesOnly", action="store_true", help="Only run the neutral particle energy scale selection variation")
+    parser.add_argument("--onlyThese", nargs="+", help="List of variation names to run (space-separated)")
     return parser.parse_args()
 
 if __name__ == "__main__":
