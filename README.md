@@ -1,4 +1,4 @@
-# Unbinned measurement of thrust in $e^+e^−$ collisions at 91.2 GeV with ALEPH archived data
+# Unbinned measurement of thrust in $\mathbf{e^+e^−}$ collisions at 91.2 GeV with ALEPH archived data
 
 [![arXiv](https://img.shields.io/badge/arXiv-2510.22038-b31b1b.svg?style=flat)](https://arxiv.org/abs/2510.22038)
 [![AnalysisNote](https://img.shields.io/badge/AnalysisNote-2507.14349-007ec6.svg)](https://arxiv.org/abs/2507.14349)
