@@ -1,7 +1,7 @@
 # Unbinned measurement of thrust in $e^+e^−$ collisions at $\sqrt{s}$ = 91.2 GeV with ALEPH archived data
 
 [![arXiv](https://img.shields.io/badge/arXiv-2510.22038-b31b1b.svg?style=flat)](https://arxiv.org/abs/2510.22038)
-[![AN](https://img.shields.io/badge/arXiv-2507.14349-00ff00.svg)](https://arxiv.org/abs/2507.14349)
+[![AnalysisNote](https://img.shields.io/badge/AN-2507.14349-00ff00.svg)](https://arxiv.org/abs/2507.14349)
 
 These notebooks demonstrate how to interact with the unbinned thrust measurement with ALEPH archived data presented in [arXiv:2510.22038](https://arxiv.org/abs/2510.22038). This analysis uses [OmniFold](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.124.182001) to mitigate detector effects in data.
 
