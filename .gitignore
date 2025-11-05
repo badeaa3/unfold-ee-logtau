@@ -2,7 +2,7 @@
 __pycache__/
 .ipynb_checkpoints/
 *results/
-.vscode/
+11;rgb:158e/193a/1e75.vscode/
 temp/
 
 # files
@@ -17,3 +17,6 @@ temp/
 *.pkl
 .submission_file*
 *.pcm
+
+# but keep the Results folder at the root
+!Results/**
