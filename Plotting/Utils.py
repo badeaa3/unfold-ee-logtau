@@ -6,7 +6,95 @@ import matplotlib.pyplot as plt
 import os
 import PyPDF2
 from PyPDF2 import PdfReader, PdfWriter, Transformation
+import scipy.stats
+import matplotlib.patches as patches
 
+def plotBand(ax, x, y, syst_err, bin_widths, color, alpha=0.4):
+    """
+    Plot points with systematic uncertainty:
+      * semi-transparent rectangles per bin
+      * a continuous symmetric error band y ± syst_err
+
+    Parameters
+    ----------
+    ax : matplotlib Axes
+        Axis to draw on.
+    x : array-like
+        Bin centers.
+    y : array-like
+        Values at bin centers.
+    syst_err : array-like
+        Symmetric systematic uncertainties (same length as x).
+    bin_widths : array-like
+        Bin widths (same length as x).
+    color : str
+        Color for markers and boxes/band.
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+    syst_err = np.asarray(syst_err)
+    bin_widths = np.asarray(bin_widths)
+
+    for xi, yi, err, bw in zip(x, y, syst_err, bin_widths):
+        rect = patches.Rectangle(
+            (xi - bw/2, yi - err),   # bottom-left corner
+            bw,                      # width
+            2 * err,                 # height
+            facecolor=color,
+            alpha=alpha,
+            edgecolor='none'
+        )
+        ax.add_patch(rect)
+        
+def chi2_ndf(y1, yerr1, y2, yerr2):
+    """
+    Compute χ²/ndf between two binned distributions with identical binning.
+
+    Parameters
+    ----------
+    y1, yerr1 : array-like
+        Values and uncertainties for dataset 1 (e.g. ALEPH).
+    y2, yerr2 : array-like
+        Values and uncertainties for dataset 2 (e.g. Unifold).
+
+    Returns
+    -------
+    chi2, ndf, chi2_per_ndf : tuple of floats
+        Total chi-square, number of degrees of freedom, and χ²/ndf.
+    """
+    y1, yerr1 = np.asarray(y1), np.asarray(yerr1)
+    y2, yerr2 = np.asarray(y2), np.asarray(yerr2)
+
+    # Combine uncertainties in quadrature
+    sigma2 = yerr1**2 + yerr2**2
+
+    # Avoid division by zero
+    valid = sigma2 > 0
+    chi2 = np.sum(((y1[valid] - y2[valid])**2) / sigma2[valid])
+    ndf = np.count_nonzero(valid)
+    p_value = scipy.stats.chi2.sf(chi2, ndf)  # survival function (1 - CDF)
+    return chi2, ndf, chi2 / ndf, p_value
+
+def pull_rms(y1, yerr1, y2, yerr2):
+    dy = np.asarray(y1) - np.asarray(y2)
+    sigma = np.sqrt(yerr1**2 + yerr2**2)
+    pulls = dy / sigma
+    return np.std(pulls), pulls
+
+def global_shift(y1, yerr1, y2, yerr2):
+    y1, y2 = np.asarray(y1), np.asarray(y2)
+    yerr1, yerr2 = np.asarray(yerr1), np.asarray(yerr2)
+
+    dy = y1 - y2
+    sigma = np.sqrt(yerr1**2 + yerr2**2)
+    w = 1 / sigma**2
+
+    mean_shift = np.sum(w * dy) / np.sum(w)
+    shift_sigma = np.sqrt(1 / np.sum(w))
+    Z = mean_shift / shift_sigma
+
+    return mean_shift, shift_sigma, Z
+    
 def mc_bin_quality(
     data_counts: np.ndarray,
     data_err: np.ndarray,
