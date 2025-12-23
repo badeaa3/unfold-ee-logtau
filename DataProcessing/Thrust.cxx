@@ -231,22 +231,29 @@ int main(int argc, char* argv[]) {
   t->SetBranchAddress("charge", &charge);
   // event level quantities
   TVector3 thrust;
+  TVector3 charged_thrust;
   std::unique_ptr<Sphericity> spher;
   
-  // vectors for selected objects (single selection now)
+  // vectors for selected objects (single selection now) -> charged and neutral particles
   int selectedParts = 0;
   std::vector<float> selectedPx, selectedPy, selectedPz;
   std::vector<Short_t> selectedPwflag;
+
+  // vectors for selected objects -> charged particle only
+  int selectedChargedParts = 0;
+  std::vector<float> selectedChargedPx, selectedChargedPy, selectedChargedPz;
+  std::vector<Short_t> selectedChargedPwflag;
   
   // create output tree
   std::unique_ptr<TTree> tout (new TTree(tree.c_str(), ""));
   unsigned long long uniqueIDCopy; 
-  float Thrust, TotalTrkEnergy, STheta, Sph, MissP, EVis, TTheta, RivetThrust;
+  float Thrust, TotalTrkEnergy, STheta, Sph, MissP, EVis, TTheta, RivetThrust, ChargedThrust;
   int NTrk, Neu;
   bool passEventSelection;
   tout->Branch("uniqueID", &uniqueIDCopy);
   tout->Branch("Thrust", &Thrust);
   tout->Branch("RivetThrust", &RivetThrust);
+  tout->Branch("ChargedThrust", &ChargedThrust);
   tout->Branch("TotalTrkEnergy", &TotalTrkEnergy);
   tout->Branch("NTrk", &NTrk);
   tout->Branch("Neu", &Neu);
@@ -333,11 +340,18 @@ int main(int argc, char* argv[]) {
     conversionElectronTheta.clear();
     conversionElectronPhi.clear();
     conversionElectronPt.clear();
+    // charged and neutral particles
     selectedParts = 0;
     selectedPx.clear();
     selectedPy.clear();
     selectedPz.clear();
     selectedPwflag.clear();
+    // charged particles
+    selectedChargedParts = 0;
+    selectedChargedPx.clear();
+    selectedChargedPy.clear();
+    selectedChargedPz.clear();
+    selectedChargedPwflag.clear();
 
     // loop over particles
     for (int iP = 0; iP < nParticle; iP++) {
@@ -354,40 +368,40 @@ int main(int argc, char* argv[]) {
       // nominally all gen passes
       if (genTree) saveParticle = true;
 
-      // special cleaning for ALEPH MC
-      if (inFileType == "ALEPHMC"){
+      // // special cleaning for ALEPH MC
+      // if (inFileType == "ALEPHMC"){
 	
-	// gen only cleaning neutral cleaning around phi = 0 for photon radiation along beam pipe
-	if (genTree && charge[iP] == 0 && std::abs(phi[iP]) <= 0.001 && pt[iP] > 0.00099 && pt[iP] < 0.001009) saveParticle = false;
+      // 	// gen only cleaning neutral cleaning around phi = 0 for photon radiation along beam pipe
+      // 	if (genTree && charge[iP] == 0 && std::abs(phi[iP]) <= 0.001 && pt[iP] > 0.00099 && pt[iP] < 0.001009) saveParticle = false;
 	
-	// apply conversion cleaning only to archived aleph MC reco and gen
-	bool isConversionElectron = true;
-	//both electrons
-	if( pwflag[iP] != 2 ) isConversionElectron = false;
-	if( pwflag[iP-1] != 2 ) isConversionElectron = false;
-	//opposite charge required
-	if( charge[iP] != -(charge[iP-1])) isConversionElectron = false;
-	//dtheta and dphi matching
-	float conversionDPhi = 0.05;
-	float conversionDTheta = 0.05;
-	if( TMath::Abs(theta[iP] - theta[iP-1]) > conversionDTheta) isConversionElectron = false;
-	if( TMath::ACos(TMath::Cos(phi[iP] - phi[iP-1])) > conversionDPhi) isConversionElectron = false;
-	// apply selection
-	if(isConversionElectron){
-	  // if conversion electron then don't save particle and remove previous particle also
-	  saveParticle = false;
-	  // remove previous particle
-	  selectedParts -= 1;
-	  selectedPx.pop_back();
-	  selectedPy.pop_back();
-	  selectedPz.pop_back();
-	  selectedPwflag.pop_back();
-	  // conversion electrons
-	  conversionElectronTheta.push_back(theta[iP]);
-	  conversionElectronPhi.push_back(phi[iP]);
-	  conversionElectronPt.push_back(pt[iP]);
-	}
-      }
+      // 	// apply conversion cleaning only to archived aleph MC reco and gen
+      // 	bool isConversionElectron = true;
+      // 	//both electrons
+      // 	if( pwflag[iP] != 2 ) isConversionElectron = false;
+      // 	if( pwflag[iP-1] != 2 ) isConversionElectron = false;
+      // 	//opposite charge required
+      // 	if( charge[iP] != -(charge[iP-1])) isConversionElectron = false;
+      // 	//dtheta and dphi matching
+      // 	float conversionDPhi = 0.05;
+      // 	float conversionDTheta = 0.05;
+      // 	if( TMath::Abs(theta[iP] - theta[iP-1]) > conversionDTheta) isConversionElectron = false;
+      // 	if( TMath::ACos(TMath::Cos(phi[iP] - phi[iP-1])) > conversionDPhi) isConversionElectron = false;
+      // 	// apply selection
+      // 	if(isConversionElectron){
+      // 	  // if conversion electron then don't save particle and remove previous particle also
+      // 	  saveParticle = false;
+      // 	  // remove previous particle
+      // 	  selectedParts -= 1;
+      // 	  selectedPx.pop_back();
+      // 	  selectedPy.pop_back();
+      // 	  selectedPz.pop_back();
+      // 	  selectedPwflag.pop_back();
+      // 	  // conversion electrons
+      // 	  conversionElectronTheta.push_back(theta[iP]);
+      // 	  conversionElectronPhi.push_back(phi[iP]);
+      // 	  conversionElectronPt.push_back(pt[iP]);
+      // 	}
+      // }
 
       // apply reco level selections
       if (!genTree){
@@ -464,6 +478,17 @@ int main(int argc, char* argv[]) {
         selectedPy.push_back(py[iP]);
         selectedPz.push_back(pz[iP]);
         selectedPwflag.push_back(pwflag[iP]);
+
+	// save charged particles only
+	if(pwflag[iP] >= 0 && pwflag[iP] <= 2){
+	  // save for charged particle only event shape variables
+          selectedChargedParts += 1;
+          selectedChargedPx.push_back(px[iP]);
+          selectedChargedPy.push_back(py[iP]);
+          selectedChargedPz.push_back(pz[iP]);
+          selectedChargedPwflag.push_back(pwflag[iP]);
+	}
+	
         // fill particle kinematic histograms
         if(inFileType == "PYTHIA8") continue; // pwflag only exists for archived ALEPH data style format
         if(!(pwflag[iP] >= 0 && pwflag[iP] <= 5)) continue; // only save pwflag 0-5
@@ -508,6 +533,10 @@ int main(int argc, char* argv[]) {
     Thrust = thrust.Mag();
     TTheta = thrust.Theta();
 
+    // charged particle only thrust
+    charged_thrust = getThrust(selectedChargedParts, selectedChargedPx.data(), selectedChargedPy.data(), selectedChargedPz.data(), THRUST::OPTIMAL);
+    ChargedThrust = charged_thrust.Mag();
+      
     // rivet thrust
     std::vector<TVector3> fsmomenta;
     double momentumSum = 0;
