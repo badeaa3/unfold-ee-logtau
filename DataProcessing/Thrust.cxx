@@ -237,6 +237,7 @@ int main(int argc, char* argv[]) {
   // vectors for selected objects (single selection now) -> charged and neutral particles
   int selectedParts = 0;
   std::vector<float> selectedPx, selectedPy, selectedPz;
+  std::vector<float> selectedE;
   std::vector<Short_t> selectedPwflag;
 
   // vectors for selected objects -> charged particle only
@@ -248,7 +249,8 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<TTree> tout (new TTree(tree.c_str(), ""));
   unsigned long long uniqueIDCopy; 
   float Thrust, TotalTrkEnergy, STheta, Sph, MissP, EVis, TTheta, RivetThrust, ChargedThrust;
-  int NTrk, Neu;
+  float sprime;
+  int NTrk, Neu, Nisr;
   bool passEventSelection;
   tout->Branch("uniqueID", &uniqueIDCopy);
   tout->Branch("Thrust", &Thrust);
@@ -257,11 +259,13 @@ int main(int argc, char* argv[]) {
   tout->Branch("TotalTrkEnergy", &TotalTrkEnergy);
   tout->Branch("NTrk", &NTrk);
   tout->Branch("Neu", &Neu);
+  tout->Branch("Nisr", &Nisr);
   tout->Branch("STheta", &STheta);
   tout->Branch("Sphericity", &Sph);
   tout->Branch("MissP", &MissP);
   tout->Branch("EVis", &EVis);
   tout->Branch("TTheta", &TTheta);
+  tout->Branch("sprime", &sprime);
   tout->Branch("passEventSelection", &passEventSelection);
   // save selected particles
   tout->Branch("NSelectedParticles", &selectedParts);
@@ -300,6 +304,7 @@ int main(int argc, char* argv[]) {
   hists[{0, "logtau"}] = new TH1D( "h_logtau", ";log(#tau);Entries", 100, -10, 0);
   hists[{0, "missP"}] = new TH1D( "h_missP", ";|#vec{p}_{MET}| [GeV];Entries", 100, 0, 100);
   hists[{0, "evis"}] = new TH1D( "h_evis", ";E_{Vis} [GeV];Entries", 200, 0, 200);
+  hists[{0, "sprime"}] = new TH1D( "h_sprime", ";#sqrt{s'} [GeV];Entries", 180, 30, 120);
   hists[{0, "cosThetaThrust"}] = new TH1D("h_cosThetaThrust", ";cos#theta_{Thr};Entries", 100, -1, 1);
 
   // interpret divide and thisdiv to event range
@@ -336,6 +341,7 @@ int main(int argc, char* argv[]) {
     TotalTrkEnergy = 0;
     NTrk = 0;
     Neu = 0;
+    Nisr = 0;
     EVis = 0;
     conversionElectronTheta.clear();
     conversionElectronPhi.clear();
@@ -348,6 +354,7 @@ int main(int argc, char* argv[]) {
     selectedPwflag.clear();
     // charged particles
     selectedChargedParts = 0;
+    selectedE.clear();
     selectedChargedPx.clear();
     selectedChargedPy.clear();
     selectedChargedPz.clear();
@@ -368,6 +375,12 @@ int main(int argc, char* argv[]) {
       // nominally all gen passes
       if (genTree) saveParticle = true;
 
+      // count number of ISR near to beampipe
+      if (pwflag[iP] == 4 && charge[iP] == 0 && phi[iP] == 0 && TMath::Abs(TMath::Cos(theta[iP]))>0.98) Nisr++;
+      
+      // if (pwflag[iP] == 4 && charge[iP] == 0 && std::abs(phi[iP]) <= 0.001 && pt[iP] > 0.00099 && pt[iP] < 0.001009) Nisr++;
+      // if (pwflag[iP] == 4 && charge[iP] == 0 && TMath::Abs(TMath::Cos(theta[iP]))>0.98) Nisr++;
+	  
       // // special cleaning for ALEPH MC
       // if (inFileType == "ALEPHMC"){
 	
@@ -474,13 +487,15 @@ int main(int argc, char* argv[]) {
       if (saveParticle){
         // save for event shape variables
         selectedParts += 1;
+	selectedE.push_back(energy);
         selectedPx.push_back(px[iP]);
         selectedPy.push_back(py[iP]);
         selectedPz.push_back(pz[iP]);
         selectedPwflag.push_back(pwflag[iP]);
 
 	// save charged particles only
-	if(pwflag[iP] >= 0 && pwflag[iP] <= 2){
+	// if(pwflag[iP] >= 0 && pwflag[iP] <= 2){
+	if(pwflag[iP] == 0){
 	  // save for charged particle only event shape variables
           selectedChargedParts += 1;
           selectedChargedPx.push_back(px[iP]);
@@ -536,19 +551,31 @@ int main(int argc, char* argv[]) {
     // charged particle only thrust
     charged_thrust = getThrust(selectedChargedParts, selectedChargedPx.data(), selectedChargedPy.data(), selectedChargedPz.data(), THRUST::OPTIMAL);
     ChargedThrust = charged_thrust.Mag();
-      
+
+    // total momentum vector
+    TLorentzVector Ptot(0, 0, 0, 0);
+    
     // rivet thrust
     std::vector<TVector3> fsmomenta;
     double momentumSum = 0;
     for (int t = 0; t < selectedParts; t++) {
       fsmomenta.push_back(TVector3(selectedPx.at(t), selectedPy.at(t), selectedPz.at(t)));
       momentumSum += fsmomenta.at(t).Mag();
+
+      // add to the total vector
+      TLorentzVector p4;
+      p4.SetPxPyPzE(selectedPx.at(t), selectedPy.at(t), selectedPz.at(t), selectedE.at(t));
+      Ptot += p4;
     }
     TVector3 axis(0,0,0);
     double val = 0;
     _calcT(fsmomenta, val, axis);
     RivetThrust = val / momentumSum;
 
+    // Effective invariant mass
+    sprime = Ptot.M(); // sqrt(s')
+    // sprime2 = Ptot.M2(); // s'
+    
     // compute event selection passes
     bool eventSelection =
     passesNTupleAfterCut == 1
@@ -575,6 +602,7 @@ int main(int argc, char* argv[]) {
       hists[{0, "logtau"}]->Fill(TMath::Log(1-Thrust));
       hists[{0, "missP"}]->Fill(MissP);
       hists[{0, "evis"}]->Fill(EVis);
+      hists[{0, "sprime"}]->Fill(sprime);
       hists[{0, "cosThetaThrust"}]->Fill(TMath::Cos(TTheta));
     }
 
