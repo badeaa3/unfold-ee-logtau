@@ -17,6 +17,7 @@ temp/
 *.pkl
 .submission_file*
 *.pcm
+*.DS_Store
 
 # but keep the Results folder at the root
 !Results/**
